@@ -1,1 +1,0 @@
-/usr/bin/c++    -ffunction-sections -fdata-sections -fPIC -m64 -O3 -DNDEBUG   CMakeFiles/wasm2wat.dir/src/tools/wasm2wat.cc.o  -o wasm2wat -rdynamic libwabt.a 
