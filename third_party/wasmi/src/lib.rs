@@ -537,6 +537,7 @@ impl Module {
 	/// }
 	/// ```
 	pub fn from_buffer<B: AsRef<[u8]>>(buffer: B) -> Result<Module, Error> {
+		println!("hello");
 		let module = parity_wasm::elements::deserialize_buffer(buffer.as_ref())
 			.map_err(|e: parity_wasm::elements::Error| Error::Validation(e.to_string()))?;
 		Module::from_parity_wasm_module(module)

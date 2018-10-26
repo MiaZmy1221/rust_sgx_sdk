@@ -1,0 +1,1 @@
+cargo:rustc-cfg=lazy_static_spin_impl

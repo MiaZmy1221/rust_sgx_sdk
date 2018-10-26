@@ -354,6 +354,23 @@ impl MemoryInstance {
 		Ok(())
 	}
 
+	/// Copy memory between two (possibly distinct) memory instances.
+	///
+	/// If the same memory instance passed as `src` and `dst` then usual `copy` will be used.
+	pub fn transfer(src: &MemoryRef, src_offset: usize, dst: &MemoryRef, dst_offset: usize, len: usize) -> Result<(), Error> {
+		// Because memory references point to different memory instances, it is safe to `borrow_mut`
+		// both buffers at once (modulo `with_direct_access_mut`).
+		let mut src_buffer = src.buffer.borrow_mut();
+		let mut dst_buffer = dst.buffer.borrow_mut();
+
+		let src_range = src.checked_region(&mut src_buffer, src_offset, len)?.range();
+		let dst_range = dst.checked_region(&mut dst_buffer, dst_offset, len)?.range();
+
+		dst_buffer[dst_range].copy_from_slice(&src_buffer[src_range]);
+
+		Ok(())
+	}
+
 	/// Fill the memory region with the specified value.
 	///
 	/// Semantically equivalent to `memset`.

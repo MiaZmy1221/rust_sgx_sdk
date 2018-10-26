@@ -29,7 +29,7 @@
 
 ######## SGX SDK Settings ########
 
-SGX_SDK ?= /opt/intel/sgxsdk
+SGX_SDK ?= /home/zhang.9407/intelsgx/sgxsdk
 SGX_MODE ?= HW
 SGX_ARCH ?= x64
 

@@ -18,6 +18,11 @@ use common::{DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX};
 use types::{GlobalDescriptor, TableDescriptor, MemoryDescriptor};
 use memory_units::Pages;
 
+// add some code
+use {ModuleImportResolver, ValueType, RuntimeArgs, ImportsBuilder};
+use std::borrow::BorrowMut;
+use std::cell::RefMut;
+
 /// Reference to a [`ModuleInstance`].
 ///
 /// This reference has a reference-counting semantics.
@@ -149,6 +154,151 @@ impl ExternVal {
 /// [`TableInstance`]: struct.TableInstance.html
 /// [`GlobalInstance`]: struct.GlobalInstance.html
 /// [`invoke_export`]: #method.invoke_export
+
+// add some code
+
+//Step1: struct
+#[derive(Clone)]
+pub struct DfinityData {
+	pub memory: Option<MemoryRef>,
+        pub datamap: HashMap<i32, Vec<u8>>,
+	pub counter: i32,
+}
+
+impl fmt::Debug for DfinityData {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		f.debug_struct("DfinityData")
+			.field("memory", &self.memory)
+			.field("datamap", &self.datamap)
+			.field("counter", &self.counter)
+			.finish()
+	}
+}
+
+//Step2: impl struct  add a new function
+impl DfinityData {
+	fn new() -> DfinityData {
+		DfinityData {
+			memory: Some(MemoryInstance::alloc(Pages(1), None).unwrap()),
+			datamap: HashMap::new(),
+			//datamapre: HashMap<i32, Vec<u8>>::new(),
+			counter: 0,
+		}
+	}
+}
+//Step3: define func index
+const DATA_EXTERNALIZE: usize = 0;
+const DATA_INTERNALIZE: usize = 1;
+const DATA_LENGTH: usize = 2;
+//Step4: imple Externals
+impl Externals for DfinityData {
+	fn invoke_index(
+		&mut self,
+		index: usize,
+		args: RuntimeArgs,
+	) -> Result<Option<RuntimeValue>, Trap> {
+		match index {
+			DATA_EXTERNALIZE => {
+				let a: u32 = args.nth(0);
+				// b must be u8 for function get_into, but for get b must be usize
+				let b: i32 = args.nth(1);
+
+				let memory = self.memory.as_ref().expect(
+					"Function 'data_externalize' expects attached memory",
+				);
+
+				let buf = memory.get(a, b as usize).expect("Successfully retrieve the result");
+				
+				// insert key:counter, value:buf into 
+				let mut data_map = self.datamap.borrow_mut();
+				let data_counter = self.counter;
+				data_map.insert(data_counter, buf.to_vec());
+				self.counter = data_counter + 1;
+
+				let result = Some(RuntimeValue::I32(data_counter));
+				println!("result is {:?}, data_map is {:?}", result, data_map);
+				
+
+				Ok(result)
+			}
+			DATA_INTERNALIZE => {
+				let a: i32 = args.nth(0); // dst offset  10
+				let b: i32 = args.nth(1); // length  buf.length
+				let c: i32 = args.nth(2); // databuf  datareference
+				let d: i32 = args.nth(3); // src offset 0
+				//println!("a is {:?}  b is {:?}  c is {:?}  f is {:?}", a, b, c, d);
+				let memory = self.memory.as_ref().expect(
+					"Function 'data_externalize' expects attached memory",
+				);
+				//println!("before internalize, memory is {:?}", memory);
+				
+				let mut data_map = self.datamap.borrow_mut();
+				let buffer = data_map.get(&c);
+				//println!("data_internalize function buf is: {:?}", buffer);
+				let mem = MemoryInstance::alloc(Pages(1), None).unwrap();
+				mem.set(0, &buffer.unwrap()).expect("Successful initialize the memory");
+			
+				MemoryInstance::transfer(&mem, d as usize, &memory, a as usize, b as usize).unwrap();
+				//println!("after internalize, memory is {:?}", memory);			
+
+				Ok(None)
+			}
+			DATA_LENGTH => {
+				let a: i32 = args.nth(0);
+				let mut data_map = self.datamap.borrow_mut();
+				let buffer = data_map.get(&a);
+				//println!("key is {:?}, value is {:?}", a, buffer);
+				let length = buffer.unwrap().len();
+				//println!("length is {:?}", length);
+				let i32length: i32 = length as i32;
+		
+				Ok(Some(RuntimeValue::I32(i32length)))
+			}
+			_ => panic!("env doesn't provide function at index {}", index),
+		}
+	}
+}
+//Step5: impl function check_signature in the struct DfinityData
+impl DfinityData {
+	fn check_signature(&self, index: usize, signature: &Signature) -> bool {
+
+		let (params, ret_ty): (&[ValueType], Option<ValueType>) = match index {
+			DATA_EXTERNALIZE => (&[ValueType::I32, ValueType::I32], Some(ValueType::I32)),
+			DATA_INTERNALIZE => (&[ValueType::I32, ValueType::I32, ValueType::I32, ValueType::I32], None),
+			DATA_LENGTH => (&[ValueType::I32], Some(ValueType::I32)),
+			_ => return false,
+		};
+
+		signature.params() == params && signature.return_type() == ret_ty
+	}
+}
+//Step6: impl trait ModuleImportResolver for struct DfinityData
+impl ModuleImportResolver for DfinityData {
+	fn resolve_func(&self, field_name: &str, signature: &Signature) -> Result<FuncRef, Error> {
+		let index = match field_name {
+			"externalize" => DATA_EXTERNALIZE,
+			"internalize" => DATA_INTERNALIZE,
+			"length" => DATA_LENGTH,
+			_ => {
+				return Err(Error::Instantiation(
+					format!("Export {} not found", field_name),
+				))
+			}
+		};
+
+		if !self.check_signature(index, signature) {
+			return Err(Error::Instantiation(format!(
+				"Export `{}` doesnt match expected type {:?}",
+				field_name,
+				signature
+			)));
+		}
+
+		Ok(FuncInstance::alloc_host(signature.clone(), index))
+	}
+}
+
+
 #[derive(Debug)]
 pub struct ModuleInstance {
 	signatures: RefCell<Vec<Arc<Signature>>>,
@@ -157,6 +307,8 @@ pub struct ModuleInstance {
 	memories: RefCell<Vec<MemoryRef>>,
 	globals: RefCell<Vec<GlobalRef>>,
 	exports: RefCell<HashMap<String, ExternVal>>,
+	// add some code
+	pub env: RefCell<DfinityData>,
 }
 
 
@@ -169,6 +321,8 @@ impl ModuleInstance {
 			memories: RefCell::new(Vec::new()),
 			globals: RefCell::new(Vec::new()),
 			exports: RefCell::new(HashMap::new()),
+			// add some code
+			env: RefCell::new(DfinityData::new()),
 		}
 	}
 
@@ -190,6 +344,29 @@ impl ModuleInstance {
 
 	pub(crate) fn signature_by_index(&self, idx: u32) -> Option<Arc<Signature>> {
 		self.signatures.borrow().get(idx as usize).cloned()
+	}
+
+	// add some code
+	pub fn set_env(&self, env_para: DfinityData) -> DfinityData {
+		let mut env = self.env.borrow_mut();
+		env.memory = env_para.memory;
+		env.counter = env_para.counter;
+		env.datamap = env_para.datamap;
+		(*env).clone()
+
+	}
+
+	pub fn set_env_memory(&self, memory: Option<MemoryRef>) -> DfinityData {
+		let mut env = self.env.borrow_mut();
+		env.memory = memory;
+		(*env).clone()
+
+	}
+
+	pub fn get_env(&self) -> DfinityData {
+		let mut env = self.env.borrow_mut();
+		(*env).clone()
+
 	}
 
 	fn push_func(&self, func: FuncRef) {
@@ -449,6 +626,10 @@ impl ModuleInstance {
 			memory_inst.set(offset_val, data_segment.value())?;
 		}
 
+		// add some code
+		let internal_mem = module_ref.memory_by_index(DEFAULT_MEMORY_INDEX);
+		module_ref.set_env_memory(internal_mem);
+
 		Ok(NotStartedModuleRef {
 			loaded_module,
 			instance: module_ref,
@@ -522,6 +703,12 @@ impl ModuleInstance {
 		let module = loaded_module.module();
 
 		let mut extern_vals = Vec::new();
+
+		// add some code 
+		let mut env = DfinityData::new();
+		let imports1 = &ImportsBuilder::new().with_resolver("data", &env); 
+		// change imports to imports1
+
 		for import_entry in module.import_section().map(|s| s.entries()).unwrap_or(&[]) {
 			let module_name = import_entry.module();
 			let field_name = import_entry.field();
@@ -532,22 +719,22 @@ impl ModuleInstance {
 						.get(fn_ty_idx as usize)
 						.expect("Due to validation functions should have valid types");
 					let signature = Signature::from_elements(func_type);
-					let func = imports.resolve_func(module_name, field_name, &signature)?;
+					let func = imports1.resolve_func(module_name, field_name, &signature)?;
 					ExternVal::Func(func)
 				}
 				External::Table(ref table_type) => {
 					let table_descriptor = TableDescriptor::from_elements(table_type);
-					let table = imports.resolve_table(module_name, field_name, &table_descriptor)?;
+					let table = imports1.resolve_table(module_name, field_name, &table_descriptor)?;
 					ExternVal::Table(table)
 				}
 				External::Memory(ref memory_type) => {
 					let memory_descriptor = MemoryDescriptor::from_elements(memory_type);
-					let memory = imports.resolve_memory(module_name, field_name, &memory_descriptor)?;
+					let memory = imports1.resolve_memory(module_name, field_name, &memory_descriptor)?;
 					ExternVal::Memory(memory)
 				}
 				External::Global(ref global_type) => {
 					let global_descriptor = GlobalDescriptor::from_elements(global_type);
-					let global = imports.resolve_global(module_name, field_name, &global_descriptor)?;
+					let global = imports1.resolve_global(module_name, field_name, &global_descriptor)?;
 					ExternVal::Global(global)
 				}
 			};
@@ -627,8 +814,15 @@ impl ModuleInstance {
 		};
 
 		check_function_args(func_instance.signature(), &args)?;
-		FuncInstance::invoke(&func_instance, args, externals)
-			.map_err(|t| Error::Trap(t))
+		// add some code
+		let mut instance_env = self.get_env();
+		let result = FuncInstance::invoke(&func_instance, args, &mut instance_env)
+
+			.map_err(|t| Error::Trap(t));
+		let function_env = self.set_env(instance_env);
+		println!("function_env is: {:?}", function_env);
+		println!("instance is: {:?}", self);
+		result
 	}
 
 	/// Find export by a name.
