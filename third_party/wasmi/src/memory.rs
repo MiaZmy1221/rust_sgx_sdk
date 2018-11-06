@@ -205,6 +205,13 @@ impl MemoryInstance {
 		Ok(())
 	}
 
+	// add new code here
+	pub fn get_whole_buf(&self) -> Result<Vec<u8>, Error> {
+		let mut buffer = self.buffer.borrow_mut();
+
+		Ok(buffer.to_vec())
+	}
+
 	/// Copy data in the memory at given offset.
 	pub fn set(&self, offset: u32, value: &[u8]) -> Result<(), Error> {
 		let mut buffer = self.buffer.borrow_mut();

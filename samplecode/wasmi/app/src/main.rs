@@ -60,6 +60,8 @@ extern {
                           req_bin : *const u8, req_len: usize,
                           result_bin : *mut u8,
                           result_max_len : usize ) -> sgx_status_t;
+    //add some code here
+    fn dfinity_code_run(eid: sgx_enclave_id_t, retval: *mut sgx_status_t) -> sgx_status_t;
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -592,237 +594,44 @@ fn run_a_wast(enclave   : &SgxEnclave,
     Ok(())
 }
 
-// add new code here
-fn wasm_main_loop_not_file(content : String, enclave : &SgxEnclave) -> Result<(), String> {
 
-/*
-    // ScriptParser interface has changed. Need to feed it with wast content.
-    let wast_content : Vec<u8> = std::fs::read(wast_file).unwrap();
-    let path = std::path::Path::new(wast_file);
-    let fnme = path.file_name().unwrap().to_str().unwrap();
-    let mut parser = ScriptParser::from_source_and_name(&wast_content, fnme).unwrap();
-*/
+// add new function here
+fn sgx_run_dfinity(enclave : &SgxEnclave) -> Result<(),String> {
+    let mut retval:sgx_status_t = sgx_status_t::SGX_SUCCESS;
+    let result = unsafe {
+        dfinity_code_run(enclave.geteid(),
+                     &mut retval)
+    };
 
-    let mut parser = ScriptParser::from_str(&content).unwrap();
-    sgx_enclave_wasm_init(enclave)?;
-    while let Some(Command{kind,line}) =
-            match parser.next() {
-                Ok(x) => x,
-                _ => { return Err("Error parsing test input".to_string()); }
-            }
-    {
-        println!("Line : {}", line);
-
-        match kind {
-            CommandKind::Module { name, module, .. } => {
-                sgx_enclave_wasm_load_module (module.into_vec(), &name, enclave)?;
-                println!("load module - success at line {}", line)
-            },
-
-            CommandKind::AssertReturn { action, expected } => {
-                let result:Result<Option<RuntimeValue>, InterpreterError> = sgx_enclave_wasm_run_action(&action, enclave);
-                match result {
-                    Ok(result) => {
-                        let spec_expected = expected.iter()
-                                                    .cloned()
-                                                    .map(spec_to_runtime_value)
-                                                    .collect::<Vec<_>>();
-                        let actual_result = result.into_iter().collect::<Vec<RuntimeValue>>();
-                        for (actual_result, spec_expected) in actual_result.iter().zip(spec_expected.iter()) {
-                            assert_eq!(actual_result.value_type(), spec_expected.value_type());
-                            // f32::NAN != f32::NAN
-                            match spec_expected {
-                                &RuntimeValue::F32(val) if val.is_nan() => match actual_result {
-                                    &RuntimeValue::F32(val) => assert!(val.is_nan()),
-                                    _ => unreachable!(), // checked above that types are same
-                                },
-                                &RuntimeValue::F64(val) if val.is_nan() => match actual_result {
-                                    &RuntimeValue::F64(val) => assert!(val.is_nan()),
-                                    _ => unreachable!(), // checked above that types are same
-                                },
-                                spec_expected @ _ => assert_eq!(actual_result, spec_expected),
-                            }
-                        }
-                        println!("assert_return at line {} - success", line);
-                    },
-                    Err(e) => {
-                        panic!("Expected action to return value, got error: {:?}", e);
-                    }
-                }
-            },
-
-            CommandKind::AssertReturnCanonicalNan { action }
-            | CommandKind::AssertReturnArithmeticNan { action } => {
-                let result:Result<Option<RuntimeValue>, InterpreterError> = sgx_enclave_wasm_run_action(&action, enclave);
-                match result {
-                    Ok(result) => {
-                        for actual_result in result.into_iter().collect::<Vec<RuntimeValue>>() {
-                            match actual_result {
-                                RuntimeValue::F32(val) => if !val.is_nan() {
-                                    panic!("Expected nan value, got {:?}", val)
-                                },
-                                RuntimeValue::F64(val) => if !val.is_nan() {
-                                    panic!("Expected nan value, got {:?}", val)
-                                },
-                                val @ _ => {
-                                    panic!("Expected action to return float value, got {:?}", val)
-                                }
-                            }
-                        }
-                        println!("assert_return_nan at line {} - success", line);
-                    }
-                    Err(e) => {
-                        panic!("Expected action to return value, got error: {:?}", e);
-                    }
-                }
-            },
-
-            CommandKind::AssertExhaustion { action, .. } => {
-                let result:Result<Option<RuntimeValue>, InterpreterError> = sgx_enclave_wasm_run_action(&action, enclave);
-                match result {
-                    Ok(result) => panic!("Expected exhaustion, got result: {:?}", result),
-                    Err(e) => println!("assert_exhaustion at line {} - success ({:?})", line, e),
-                }
-            },
-
-            CommandKind::AssertTrap { action, .. } => {
-                println!("Enter AssertTrap!");
-                let result:Result<Option<RuntimeValue>, InterpreterError> = sgx_enclave_wasm_run_action(&action, enclave);
-                match result {
-                    Ok(result) => {
-                        panic!("Expected action to result in a trap, got result: {:?}", result);
-                    },
-                    Err(e) => {
-                        println!("assert_trap at line {} - success ({:?})", line, e);
-                    },
-                }
-            },
-
-            CommandKind::AssertInvalid { module, .. }
-            | CommandKind::AssertMalformed { module, .. }
-            | CommandKind::AssertUnlinkable { module, .. } => {
-                // Malformed
-                let module_load = sgx_enclave_wasm_try_load(&module.into_vec(), enclave);
-                match module_load {
-                    Ok(_) => panic!("Expected invalid module definition, got some module!"),
-                    Err(e) => println!("assert_invalid at line {} - success ({:?})", line, e),
-                }
-            },
-
-            CommandKind::AssertUninstantiable { module, .. } => {
-                let module_load = sgx_enclave_wasm_try_load(&module.into_vec(), enclave);
-                match module_load {
-                    Ok(_) => panic!("Expected error running start function at line {}", line),
-                    Err(e) => println!("assert_uninstantiable - success ({:?})", e),
-                }
-            },
-
-            CommandKind::Register { name, as_name, .. } => {
-                let result = sgx_enclave_wasm_register(name, as_name, enclave);
-                match result {
-                    Ok(_) => {println!("register - success at line {}", line)},
-                    Err(e) => panic!("No such module, at line {} - ({:?})", e, line),
-                }
-            },
-
-            CommandKind::PerformAction(action) => {
-                let result:Result<Option<RuntimeValue>, InterpreterError> = sgx_enclave_wasm_run_action(&action, enclave);
-                match result {
-                    Ok(_) => {println!("invoke - success at line {}", line)},
-                    Err(e) => panic!("Failed to invoke action at line {}: {:?}", line, e),
-                }
-            },
+    match result {
+        sgx_status_t::SGX_SUCCESS => {},
+        _ => {
+            println!("[-] ECALL Enclave Failed {}!", result.as_str());
+            panic!("sgx_enclave_wasm_init's ECALL returned unknown error!");
         }
     }
-    println!("[+] all tests passed!");
-    Ok(())
-}
 
-// add new code here
-fn run_a_wast_not_file(enclave   : &SgxEnclave,
-              content : String) -> Result<(), String> {
-
-    // Step 1: Init the sgxwasm spec driver engine
-    sgx_enclave_wasm_init(enclave)?;
-
-    // Step 2: Load the wast file and run
-    wasm_main_loop_not_file(content, enclave)?;
+    match retval {
+        sgx_status_t::SGX_SUCCESS => {},
+        _ => {
+            println!("[-] ECALL Enclave Function return fail: {}!", retval.as_str());
+            return Err(format!("ECALL func return error: {}", retval.as_str()));
+        }
+    }
 
     Ok(())
 }
 
+// add new function here
+fn run_dfinity(enclave   : &SgxEnclave,
+              ) -> Result<(), String> {
 
-// add new code here
-fn wasm_code_gen(code: &str, data: &str, wasm_func: &str, wasm_args: Vec<i32>) -> String{
-	//construct the wast file with data section
-	let data_section = format!("(data (i32.const 0) {})", data);
-	//println!("data section is {:?}", data_section);
-	let mut code_section = code.to_string();
-	//println!("code section is {:?}", code_section);
-	loop {
-		if code_section.pop() == Some(')') {
-			break;
-		}
-	}
-	//println!("code section is {:?}", code_section);
-	code_section.push_str(&data_section);
-	//println!("code section is {:?}", code_section);
-	code_section.push(')');
-	//println!("code section is {:?}", code_section);
+    sgx_run_dfinity(&enclave)?;
 
-	//consrtuct the wast file with invoke
-	//(assert_return (invoke "init" (i32.const 0) (i32.const 9)))
-	let mut arg_str = String::new();
-	for arg in wasm_args.iter() {
-		arg_str.push_str(&format!(" (i32.const {})", arg));	
-	}
-	//println!("args string is {:}", arg_str);
-	let invoke_func = format!("(assert_return (invoke \"{}\"{}))", wasm_func, arg_str);
-	code_section.push('\n');
-	//wabt2wasm cannot contain this line of code
-	//test for peek function
-	//code_section.push_str("(assert_return (invoke \"init\" (i32.const 0) (i32.const 9)))");	
-	code_section.push_str(&invoke_func);
-	//println!("code section is {:?}", code_section);
-	code_section
+    Ok(())
 }
 
-// add new code here
-fn wasm_code_gen_for_peek(code: &str, data: &str, wasm_func: &str, wasm_args: Vec<i32>) -> String{
-	//construct the wast file with data section
-	let data_section = format!("(data (i32.const 0) {})", data);
-	//println!("data section is {:?}", data_section);
-	let mut code_section = code.to_string();
-	//println!("code section is {:?}", code_section);
-	loop {
-		if code_section.pop() == Some(')') {
-			break;
-		}
-	}
-	//println!("code section is {:?}", code_section);
-	code_section.push_str(&data_section);
-	//println!("code section is {:?}", code_section);
-	code_section.push(')');
-	//println!("code section is {:?}", code_section);
-
-	//consrtuct the wast file with invoke
-	//(assert_return (invoke "init" (i32.const 0) (i32.const 9)))
-	let mut arg_str = String::new();
-	for arg in wasm_args.iter() {
-		arg_str.push_str(&format!(" (i32.const {})", arg));	
-	}
-	//println!("args string is {:}", arg_str);
-	let invoke_func = format!("(assert_return (invoke \"{}\"{}))", wasm_func, arg_str);
-	code_section.push('\n');
-	//wabt2wasm cannot contain this line of code
-	//test for peek function
-	code_section.push_str("(assert_return (invoke \"init\" (i32.const 0) (i32.const 9)))");	
-	code_section.push_str(&invoke_func);
-	//println!("code section is {:?}", code_section);
-	code_section
-}
-
-
+// change main function as follows
 fn main() {
 
     let enclave = match init_enclave() {
@@ -835,61 +644,11 @@ fn main() {
             return;
         },
     };
-	// add new code here
-        let data = r#""Hi DFINITY""#;
-	let code = r#"
-	(module
-	  ;; (type $t0 (func (param i32 i32))) ;; type of $peek
-	  (type $t1 (func (param i32 i32) (result i32))) ;; type of data.externalize
-	  (type $t2 (func (param i32 i32 i32 i32))) ;; type of data.internalize
-	  (type $t3 (func (param i32) (result i32))) ;; type of data.length
-	  (import "data" "externalize" (func $data.ex (type $t1)))
-	  (import "data" "internalize" (func $data.in (type $t2)))
-	  (import "data" "length" (func $data.len (type $t3)))
-	  ;; global storing a databuf reference
-	  (global $ref (mut i32) (i32.const -2)) ;; index 0
-	  ;; one page (64 KB) of memory
-	  (memory (export "memory") 1)
-	  ;; initialize memory with a string
-	  ;;(data (i32.const 0) "Hi DFINITY")
-	  (export "init" (func $init))
-	  (export "set" (func $set))
-	  (export "peek" (func $peek))
-	  (func $init (param $offset i32) (param $len i32)
-	    (set_global $ref (call $data.ex (get_local 0) (get_local 1))))
-	  (func $set (param $str i32)
-	    (set_global $ref (get_local $str)))
-	  (func $peek (param $offset i32) (param $len i32)
-	    (call $data.in (i32.const 10) (call $data.len (get_global $ref)) (get_global $ref) (i32.const 0))
-	    (set_global $ref (call $data.ex (get_local $offset) (get_local $len))))
-	)
-		"#;
-	// for function "init" 
-	let wasm_func = "init";
-	let mut wasm_args: Vec<i32> = Vec::new();
-	wasm_args.push(0 as i32);
-	wasm_args.push(9 as i32);
-	
-	let result = wasm_code_gen(code, data, wasm_func, wasm_args);
-	println!("Final wast file is {:?}", result);	
 
-	println!("======================= testing not run a file =====================");
-	run_a_wast_not_file(&enclave, result).unwrap();
+    println!("======================= testing =====================");
+    run_dfinity(&enclave).unwrap();
 
-	// for function "peek". 
-	// Before peek being invoked, init should be invoked.
-	let wasm_func2 = "peek";
-	let mut wasm_args2: Vec<i32> = Vec::new();
-	wasm_args2.push(1 as i32);
-	wasm_args2.push(5 as i32);
-	
-	// so there is a different version of wasm_code_gen function
-	let result2 = wasm_code_gen_for_peek(code, data, wasm_func2, wasm_args2);
-	println!("Final wast file is {:?}", result2);	
 
-	println!("======================= testing not run a file =====================");
-	run_a_wast_not_file(&enclave, result2).unwrap();
-	
     enclave.destroy();
     println!("[+] run_wasm success...");
 

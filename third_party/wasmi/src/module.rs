@@ -326,7 +326,7 @@ impl ModuleInstance {
 		}
 	}
 
-	pub(crate) fn memory_by_index(&self, idx: u32) -> Option<MemoryRef> {
+	pub fn memory_by_index(&self, idx: u32) -> Option<MemoryRef> {
 		self.memories.borrow_mut().get(idx as usize).cloned()
 	}
 
