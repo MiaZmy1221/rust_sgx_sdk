@@ -537,12 +537,17 @@ impl Module {
 	/// }
 	/// ```
 	pub fn from_buffer<B: AsRef<[u8]>>(buffer: B) -> Result<Module, Error> {
-		println!("hello");
 		let module = parity_wasm::elements::deserialize_buffer(buffer.as_ref())
 			.map_err(|e: parity_wasm::elements::Error| Error::Validation(e.to_string()))?;
 		Module::from_parity_wasm_module(module)
 	}
-
+	/*
+	//add new code 
+	pub fn from_buffer_wast(wast_str :&str) -> Result<Module, Error> {
+		let wasm_binary: Vec<u8> = wabt::wat2wasm(wast_str).expect("failed to parse wat");
+		Module::from_buffer(&wasm_binary)
+	}
+	*/
 	pub(crate) fn module(&self) -> &parity_wasm::elements::Module {
 		&self.module
 	}

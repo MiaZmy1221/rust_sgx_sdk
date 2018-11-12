@@ -1,0 +1,13 @@
+# Hashes of file build rules.
+99befb6d4ea07cd83c4776015bc9048d CMakeFiles/run-tests
+afe1243152fd3afaa455dd29dad091d2 CMakeFiles/spectest-interp-copy-to-bin
+e19e09a3ec2bb1f31d170daff8e42d16 CMakeFiles/wasm-interp-copy-to-bin
+dc343280d6d194493cab64c989db793b CMakeFiles/wasm-link-copy-to-bin
+3a43fd6880df13a2b0dcdbb59e5c7505 CMakeFiles/wasm-objdump-copy-to-bin
+f0f570711d67fbe6e44098fe62f2ca14 CMakeFiles/wasm-opcodecnt-copy-to-bin
+461df7c3f5b0b5ad360ed42ee495a617 CMakeFiles/wasm-validate-copy-to-bin
+d6c2aeca4425c1e3501993c049142f6e CMakeFiles/wasm2c-copy-to-bin
+21341178ff214dca314b6388203d5067 CMakeFiles/wasm2wat-copy-to-bin
+7fb7f7abede67347dbb418d157507ad2 CMakeFiles/wast2json-copy-to-bin
+93438bfaa8864fa91f72f6aa69e10b59 CMakeFiles/wat-desugar-copy-to-bin
+c4619d204bf347e470ed0828a397bacd CMakeFiles/wat2wasm-copy-to-bin

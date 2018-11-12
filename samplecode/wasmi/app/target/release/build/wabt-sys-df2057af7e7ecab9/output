@@ -1,0 +1,282 @@
+running: "cmake" "/root/.cargo/registry/src/github.com-1ecc6299db9ec823/wabt-sys-0.2.0/wabt" "-DBUILD_TESTS=OFF" "-DCMAKE_INSTALL_PREFIX=/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out" "-DCMAKE_C_FLAGS= -ffunction-sections -fdata-sections -fPIC -m64" "-DCMAKE_C_COMPILER=/usr/bin/cc" "-DCMAKE_CXX_FLAGS= -ffunction-sections -fdata-sections -fPIC -m64" "-DCMAKE_CXX_COMPILER=/usr/bin/c++" "-DCMAKE_BUILD_TYPE=Release"
+-- The C compiler identification is GNU 5.4.0
+-- The CXX compiler identification is GNU 5.4.0
+-- Check for working C compiler: /usr/bin/cc
+-- Check for working C compiler: /usr/bin/cc -- works
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Check for working CXX compiler: /usr/bin/c++
+-- Check for working CXX compiler: /usr/bin/c++ -- works
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Looking for alloca.h
+-- Looking for alloca.h - found
+-- Looking for unistd.h
+-- Looking for unistd.h - found
+-- Looking for snprintf
+-- Looking for snprintf - found
+-- Looking for sysconf
+-- Looking for sysconf - found
+-- Looking for strcasecmp
+-- Looking for strcasecmp - found
+-- Looking for sys/types.h
+-- Looking for sys/types.h - found
+-- Looking for stdint.h
+-- Looking for stdint.h - found
+-- Looking for stddef.h
+-- Looking for stddef.h - found
+-- Check size of ssize_t
+-- Check size of ssize_t - done
+-- Check size of size_t
+-- Check size of size_t - done
+-- Using prebuilt re2c lexer
+-- Looking for pthread.h
+-- Looking for pthread.h - found
+-- Looking for pthread_create
+-- Looking for pthread_create - not found
+-- Looking for pthread_create in pthreads
+-- Looking for pthread_create in pthreads - not found
+-- Looking for pthread_create in pthread
+-- Looking for pthread_create in pthread - found
+-- Found Threads: TRUE  
+-- Found PythonInterp: /usr/bin/python2.7 (found suitable version "2.7.12", minimum required is "2.7") 
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build
+running: "cmake" "--build" "." "--target" "install" "--config" "Release" "--"
+make[1]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[2]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+Scanning dependencies of target libwabt
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+[  1%] Building CXX object CMakeFiles/libwabt.dir/src/hash-util.cc.o
+[  4%] Building CXX object CMakeFiles/libwabt.dir/src/token.cc.o
+[  4%] Building CXX object CMakeFiles/libwabt.dir/src/opcode.cc.o
+[  6%] Building CXX object CMakeFiles/libwabt.dir/src/filenames.cc.o
+[  8%] Building CXX object CMakeFiles/libwabt.dir/src/string-view.cc.o
+[  9%] Building CXX object CMakeFiles/libwabt.dir/src/ir.cc.o
+[ 11%] Building CXX object CMakeFiles/libwabt.dir/src/error-handler.cc.o
+[ 12%] Building CXX object CMakeFiles/libwabt.dir/src/expr-visitor.cc.o
+[ 14%] Building CXX object CMakeFiles/libwabt.dir/src/lexer-source.cc.o
+[ 16%] Building CXX object CMakeFiles/libwabt.dir/src/lexer-source-line-finder.cc.o
+[ 17%] Building CXX object CMakeFiles/libwabt.dir/src/wast-parser-lexer-shared.cc.o
+[ 19%] Building CXX object CMakeFiles/libwabt.dir/src/prebuilt/wast-lexer-gen.cc.o
+[ 20%] Building CXX object CMakeFiles/libwabt.dir/src/wast-parser.cc.o
+[ 22%] Building CXX object CMakeFiles/libwabt.dir/src/type-checker.cc.o
+[ 24%] Building CXX object CMakeFiles/libwabt.dir/src/validator.cc.o
+[ 25%] Building CXX object CMakeFiles/libwabt.dir/src/binary-reader.cc.o
+[ 27%] Building CXX object CMakeFiles/libwabt.dir/src/binary-reader-logging.cc.o
+[ 29%] Building CXX object CMakeFiles/libwabt.dir/src/binary-writer.cc.o
+[ 30%] Building CXX object CMakeFiles/libwabt.dir/src/binary-writer-spec.cc.o
+[ 32%] Building CXX object CMakeFiles/libwabt.dir/src/binary-reader-ir.cc.o
+[ 33%] Building CXX object CMakeFiles/libwabt.dir/src/binding-hash.cc.o
+[ 35%] Building CXX object CMakeFiles/libwabt.dir/src/wat-writer.cc.o
+[ 37%] Building CXX object CMakeFiles/libwabt.dir/src/interp.cc.o
+[ 38%] Building CXX object CMakeFiles/libwabt.dir/src/binary-reader-interp.cc.o
+[ 40%] Building CXX object CMakeFiles/libwabt.dir/src/apply-names.cc.o
+[ 41%] Building CXX object CMakeFiles/libwabt.dir/src/generate-names.cc.o
+[ 43%] Building CXX object CMakeFiles/libwabt.dir/src/resolve-names.cc.o
+[ 45%] Building CXX object CMakeFiles/libwabt.dir/src/binary.cc.o
+[ 46%] Building CXX object CMakeFiles/libwabt.dir/src/color.cc.o
+[ 48%] Building CXX object CMakeFiles/libwabt.dir/src/common.cc.o
+[ 50%] Building CXX object CMakeFiles/libwabt.dir/src/config.cc.o
+[ 51%] Building CXX object CMakeFiles/libwabt.dir/src/feature.cc.o
+[ 53%] Building CXX object CMakeFiles/libwabt.dir/src/leb128.cc.o
+[ 54%] Building CXX object CMakeFiles/libwabt.dir/src/literal.cc.o
+[ 56%] Building CXX object CMakeFiles/libwabt.dir/src/option-parser.cc.o
+[ 58%] Building CXX object CMakeFiles/libwabt.dir/src/stream.cc.o
+[ 59%] Building CXX object CMakeFiles/libwabt.dir/src/tracing.cc.o
+[ 61%] Building CXX object CMakeFiles/libwabt.dir/src/utf8.cc.o
+[ 62%] Linking CXX static library libwabt.a
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+[ 62%] Built target libwabt
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+Scanning dependencies of target wat-desugar
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+Scanning dependencies of target wasm-opcodecnt
+Scanning dependencies of target wasm2wat
+Scanning dependencies of target wasm-objdump
+Scanning dependencies of target wat2wasm
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+Scanning dependencies of target wasm-validate
+Scanning dependencies of target wast2json
+Scanning dependencies of target wasm-interp
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+Scanning dependencies of target spectest-interp
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+Scanning dependencies of target wasm2c
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+[ 64%] Building CXX object CMakeFiles/wat-desugar.dir/src/tools/wat-desugar.cc.o
+[ 66%] Building CXX object CMakeFiles/wasm-opcodecnt.dir/src/binary-reader-opcnt.cc.o
+[ 67%] Building CXX object CMakeFiles/wasm-opcodecnt.dir/src/tools/wasm-opcodecnt.cc.o
+[ 69%] Building CXX object CMakeFiles/wat2wasm.dir/src/tools/wat2wasm.cc.o
+[ 70%] Building CXX object CMakeFiles/wasm-validate.dir/src/tools/wasm-validate.cc.o
+[ 72%] Building CXX object CMakeFiles/spectest-interp.dir/src/tools/spectest-interp.cc.o
+[ 74%] Building CXX object CMakeFiles/wasm2wat.dir/src/tools/wasm2wat.cc.o
+[ 77%] Building CXX object CMakeFiles/wast2json.dir/src/tools/wast2json.cc.o
+[ 77%] Building CXX object CMakeFiles/wasm-objdump.dir/src/tools/wasm-objdump.cc.o
+[ 79%] Building CXX object CMakeFiles/wasm2c.dir/src/tools/wasm2c.cc.o
+[ 80%] Building CXX object CMakeFiles/wasm-interp.dir/src/tools/wasm-interp.cc.o
+[ 82%] Building CXX object CMakeFiles/wasm-objdump.dir/src/binary-reader-objdump.cc.o
+[ 83%] Linking CXX executable wat-desugar
+[ 85%] Linking CXX executable wast2json
+[ 87%] Linking CXX executable wasm-validate
+[ 88%] Linking CXX executable wat2wasm
+[ 90%] Building CXX object CMakeFiles/wasm2c.dir/src/c-writer.cc.o
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+[ 90%] Built target wat-desugar
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+[ 91%] Linking CXX executable wasm2wat
+Scanning dependencies of target wat-desugar-copy-to-bin
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+[ 91%] Built target wat-desugar-copy-to-bin
+[ 93%] Linking CXX executable wasm-interp
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+[ 93%] Built target wasm-validate
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+Scanning dependencies of target wasm-validate-copy-to-bin
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+[ 93%] Built target wast2json
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+[ 93%] Built target wasm-validate-copy-to-bin
+Scanning dependencies of target wast2json-copy-to-bin
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+[ 93%] Built target wast2json-copy-to-bin
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+[ 93%] Built target wat2wasm
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+Scanning dependencies of target wat2wasm-copy-to-bin
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+[ 93%] Built target wasm-interp
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+[ 93%] Built target wat2wasm-copy-to-bin
+[ 93%] Built target wasm2wat
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+Scanning dependencies of target wasm-interp-copy-to-bin
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+Scanning dependencies of target wasm2wat-copy-to-bin
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+[ 93%] Built target wasm-interp-copy-to-bin
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+[ 93%] Built target wasm2wat-copy-to-bin
+[ 95%] Linking CXX executable wasm-opcodecnt
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+[ 95%] Built target wasm-opcodecnt
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+Scanning dependencies of target wasm-opcodecnt-copy-to-bin
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+[ 95%] Built target wasm-opcodecnt-copy-to-bin
+[ 96%] Linking CXX executable wasm-objdump
+[ 98%] Linking CXX executable spectest-interp
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+[ 98%] Built target wasm-objdump
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+Scanning dependencies of target wasm-objdump-copy-to-bin
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+[ 98%] Built target wasm-objdump-copy-to-bin
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+[ 98%] Built target spectest-interp
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+Scanning dependencies of target spectest-interp-copy-to-bin
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+[ 98%] Built target spectest-interp-copy-to-bin
+[100%] Linking CXX executable wasm2c
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+[100%] Built target wasm2c
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+Scanning dependencies of target wasm2c-copy-to-bin
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Entering directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+make[3]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+[100%] Built target wasm2c-copy-to-bin
+make[2]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+Install the project...
+-- Install configuration: "Release"
+-- Installing: /root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/bin/wat2wasm
+-- Installing: /root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/bin/wast2json
+-- Installing: /root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/bin/wasm2wat
+-- Installing: /root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/bin/wasm2c
+-- Installing: /root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/bin/wasm-opcodecnt
+-- Installing: /root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/bin/wasm-objdump
+-- Installing: /root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/bin/wasm-interp
+-- Installing: /root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/bin/spectest-interp
+-- Installing: /root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/bin/wat-desugar
+-- Installing: /root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/bin/wasm-validate
+make[1]: Leaving directory '/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build'
+cargo:root=/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out
+cargo:rustc-link-search=native=/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build
+cargo:rustc-link-lib=static=wabt
+cargo:rustc-link-lib=stdc++
+TARGET = Some("x86_64-unknown-linux-gnu")
+OPT_LEVEL = Some("3")
+HOST = Some("x86_64-unknown-linux-gnu")
+CXX_x86_64-unknown-linux-gnu = None
+CXX_x86_64_unknown_linux_gnu = None
+HOST_CXX = None
+CXX = None
+CXXFLAGS_x86_64-unknown-linux-gnu = None
+CXXFLAGS_x86_64_unknown_linux_gnu = None
+HOST_CXXFLAGS = None
+CXXFLAGS = None
+DEBUG = Some("false")
+running: "c++" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "wabt" "-I" "/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build" "-std=c++11" "-o" "/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/wabt/src/emscripten-helpers.o" "-c" "wabt/src/emscripten-helpers.cc"
+exit code: 0
+running: "c++" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "wabt" "-I" "/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/build" "-std=c++11" "-o" "/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/wabt_shim.o" "-c" "wabt_shim.cc"
+exit code: 0
+AR_x86_64-unknown-linux-gnu = None
+AR_x86_64_unknown_linux_gnu = None
+HOST_AR = None
+AR = None
+running: "ar" "crs" "/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/libwabt_shim.a" "/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/wabt/src/emscripten-helpers.o" "/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out/wabt_shim.o"
+exit code: 0
+cargo:rustc-link-lib=static=wabt_shim
+cargo:rustc-link-search=native=/root/sgx/samplecode/wasmi/app/target/release/build/wabt-sys-df2057af7e7ecab9/out

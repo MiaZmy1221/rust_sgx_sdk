@@ -1,0 +1,1 @@
+/usr/bin/c++    -ffunction-sections -fdata-sections -fPIC -m64 -O3 -DNDEBUG   CMakeFiles/wasm-link.dir/src/tools/wasm-link.cc.o CMakeFiles/wasm-link.dir/src/binary-reader-linker.cc.o  -o wasm-link -rdynamic libwabt.a 

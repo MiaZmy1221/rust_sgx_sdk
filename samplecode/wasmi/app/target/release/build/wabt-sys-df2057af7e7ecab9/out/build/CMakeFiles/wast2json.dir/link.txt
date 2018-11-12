@@ -1,0 +1,1 @@
+/usr/bin/c++    -ffunction-sections -fdata-sections -fPIC -m64 -O3 -DNDEBUG   CMakeFiles/wast2json.dir/src/tools/wast2json.cc.o  -o wast2json -rdynamic libwabt.a 

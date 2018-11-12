@@ -1,0 +1,10 @@
+/root/sgx/samplecode/wasmi/enclave/target/release/build/wabt-sys-df2057af7e7ecab9/out/bin/wat2wasm
+/root/sgx/samplecode/wasmi/enclave/target/release/build/wabt-sys-df2057af7e7ecab9/out/bin/wast2json
+/root/sgx/samplecode/wasmi/enclave/target/release/build/wabt-sys-df2057af7e7ecab9/out/bin/wasm2wat
+/root/sgx/samplecode/wasmi/enclave/target/release/build/wabt-sys-df2057af7e7ecab9/out/bin/wasm2c
+/root/sgx/samplecode/wasmi/enclave/target/release/build/wabt-sys-df2057af7e7ecab9/out/bin/wasm-opcodecnt
+/root/sgx/samplecode/wasmi/enclave/target/release/build/wabt-sys-df2057af7e7ecab9/out/bin/wasm-objdump
+/root/sgx/samplecode/wasmi/enclave/target/release/build/wabt-sys-df2057af7e7ecab9/out/bin/wasm-interp
+/root/sgx/samplecode/wasmi/enclave/target/release/build/wabt-sys-df2057af7e7ecab9/out/bin/spectest-interp
+/root/sgx/samplecode/wasmi/enclave/target/release/build/wabt-sys-df2057af7e7ecab9/out/bin/wat-desugar
+/root/sgx/samplecode/wasmi/enclave/target/release/build/wabt-sys-df2057af7e7ecab9/out/bin/wasm-validate

@@ -1,0 +1,1 @@
+/usr/bin/c++    -ffunction-sections -fdata-sections -fPIC -m64 -O3 -DNDEBUG   CMakeFiles/wasm-opcodecnt.dir/src/tools/wasm-opcodecnt.cc.o CMakeFiles/wasm-opcodecnt.dir/src/binary-reader-opcnt.cc.o  -o wasm-opcodecnt -rdynamic libwabt.a 

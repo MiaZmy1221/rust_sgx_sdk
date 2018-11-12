@@ -1,0 +1,1 @@
+/usr/bin/c++    -ffunction-sections -fdata-sections -fPIC -m64 -O3 -DNDEBUG   CMakeFiles/wasm-validate.dir/src/tools/wasm-validate.cc.o  -o wasm-validate -rdynamic libwabt.a 
