@@ -26,6 +26,14 @@ impl ::std::ops::Deref for FuncRef {
 	}
 }
 
+impl PartialEq for FuncRef {
+    fn eq(&self, other: &FuncRef) -> bool {
+        let func1 = &self.0;
+        let func2 = &other.0;
+        func1 == func2
+    }
+}
+
 /// Runtime representation of a function.
 ///
 /// Functions are the unit of organization of code in WebAssembly. Each function takes a sequence of values
@@ -60,14 +68,16 @@ impl fmt::Debug for FuncInstance {
 		match self.as_internal() {
 			&FuncInstanceInternal::Internal {
 				ref signature,
+				ref body,
 				..
 			} => {
 				// We can't write description of self.module here, because it generate
 				// debug string for function instances and this will lead to infinite loop.
 				write!(
 					f,
-					"Internal {{ signature={:?} }}",
+					"Internal {{ signature={:?} body={:?} }}",
 					signature,
+					body,
 				)
 			}
 			&FuncInstanceInternal::Host { ref signature, .. } => {
@@ -77,7 +87,35 @@ impl fmt::Debug for FuncInstance {
 	}
 }
 
+impl PartialEq for FuncInstance {
+    fn eq(&self, other: &FuncInstance) -> bool {
+        let func1 = self.is_internal();
+        let func2 = other.is_internal();
+        //println!("for every function func1 func2 {:?} {:?}", self.clone(), other.clone());
+        //println!("for every function func1 func2 {:?} {:?}", func1, func2);
+        if func1 == true && func2 == true {
+        	let body1 = self.body();
+        	let body2 = other.body();
+        	let signature1 = self.signature();
+        	let signature2 = other.signature();
+        	if body1 == body2 && signature1 == signature2 {
+        		println!("for true function func1 func2 {:?} {:?}", self.clone(), other.clone());
+        		return true;
+        	}
+        }
+
+        if func1 == false && func2 == false {
+        	//do not know  how to do with host functions 
+        	return false;
+        }
+
+        return false;
+    }
+}
+
+
 impl FuncInstance {
+
 	/// Allocate a function instance for a host function.
 	///
 	/// When this function instance will be called by the wasm code,
@@ -127,6 +165,14 @@ impl FuncInstance {
 		match *self.as_internal() {
 			FuncInstanceInternal::Internal { ref body, .. } => Some(Arc::clone(body)),
 			FuncInstanceInternal::Host { .. } => None,
+		}
+	}
+
+	// add some functions here
+	pub fn is_internal(&self) -> bool {
+		match *self.as_internal() {
+			FuncInstanceInternal::Internal { .. } => true,
+			FuncInstanceInternal::Host { .. } => false,
 		}
 	}
 
@@ -311,4 +357,10 @@ impl<'args> FuncInvocation<'args> {
 pub struct FuncBody {
 	pub locals: Vec<Local>,
 	pub code: isa::Instructions,
+}
+
+impl PartialEq for FuncBody {
+    fn eq(&self, other: &FuncBody) -> bool {
+        self.locals == other.locals && self.code == self.code 
+    }
 }

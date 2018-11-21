@@ -49,6 +49,7 @@ impl fmt::Debug for TableInstance {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		f.debug_struct("TableInstance")
 			.field("limits", &self.limits)
+			.field("buffer", &self.buffer)
 			.field("buffer.len", &self.buffer.borrow().len())
 			.finish()
 	}

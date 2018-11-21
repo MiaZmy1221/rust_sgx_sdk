@@ -303,3 +303,9 @@ pub enum Instruction {
 pub struct Instructions {
 	pub code: Vec<Instruction>,
 }
+
+impl PartialEq for Instructions {
+    fn eq(&self, other: &Instructions) -> bool {
+        self.code == other.code
+    }
+}

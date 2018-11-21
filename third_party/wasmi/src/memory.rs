@@ -60,11 +60,13 @@ pub struct MemoryInstance {
 	maximum: Option<Pages>,
 }
 
+// change the display of the memory
 impl fmt::Debug for MemoryInstance {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		f.debug_struct("MemoryInstance")
 			.field("limits", &self.limits)
 			.field("buffer.len", &self.buffer.borrow().len())
+			.field("buffer", &self.buffer.borrow())
 			.field("maximum", &self.maximum)
 			.field("initial", &self.initial)
 			.finish()
@@ -207,7 +209,7 @@ impl MemoryInstance {
 
 	// add new code here
 	pub fn get_whole_buf(&self) -> Result<Vec<u8>, Error> {
-		let mut buffer = self.buffer.borrow_mut();
+		let buffer = self.buffer.borrow_mut();
 
 		Ok(buffer.to_vec())
 	}

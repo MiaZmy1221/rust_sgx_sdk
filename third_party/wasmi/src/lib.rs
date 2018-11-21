@@ -378,6 +378,8 @@ mod global;
 mod func;
 mod types;
 mod isa;
+//add some code here
+mod message;
 
 #[cfg(test)]
 mod tests;
@@ -391,6 +393,9 @@ pub use self::module::{ModuleInstance, ModuleRef, ExternVal, NotStartedModuleRef
 pub use self::global::{GlobalInstance, GlobalRef};
 pub use self::func::{FuncInstance, FuncRef, FuncInvocation, ResumableError};
 pub use self::types::{Signature, ValueType, GlobalDescriptor, TableDescriptor, MemoryDescriptor};
+//add some code here
+pub use self::message::{Message, MessageArray};
+pub use self::runner::{message_check, args_static};
 
 /// WebAssembly-specific sizes and units.
 pub mod memory_units {

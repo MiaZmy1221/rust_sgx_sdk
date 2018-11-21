@@ -172,8 +172,25 @@ impl ModuleInstance {
 		}
 	}
 
+	// add some code here
 	pub fn memory_by_index(&self, idx: u32) -> Option<MemoryRef> {
 		self.memories.borrow_mut().get(idx as usize).cloned()
+	}
+
+	pub fn show_funcs(&self) {
+		let funcs = self.funcs.borrow();
+		println!("funcs is {:?}", funcs);
+	}
+
+	pub fn has_func(&self, func: FuncRef) -> bool {
+		let funcs = self.funcs.borrow();
+		//let result = funcs.contains(&func);
+		for function in funcs.to_vec() {
+		    if function == func {
+		    	return true;
+		    }
+		}
+		return false;
 	}
 
 	pub(crate) fn table_by_index(&self, idx: u32) -> Option<TableRef> {
@@ -200,7 +217,8 @@ impl ModuleInstance {
 		self.signatures.borrow_mut().push(signature)
 	}
 
-	fn push_memory(&self, memory: MemoryRef) {
+	// change the function to public
+	pub fn push_memory(&self, memory: MemoryRef) {
 		self.memories.borrow_mut().push(memory)
 	}
 

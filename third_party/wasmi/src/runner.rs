@@ -25,6 +25,14 @@ pub const DEFAULT_VALUE_STACK_LIMIT: usize = (1024 * 1024) / ::std::mem::size_of
 // TODO: Make these parameters changeble.
 pub const DEFAULT_CALL_STACK_LIMIT: usize = 64 * 1024;
 
+// add some code
+pub static mut message_check: i32 = -1;
+// stop because of call indirect
+pub static mut stop: bool = false;
+// for the arguments of the function
+pub static mut args_static: &str = "";
+pub static mut args_num: i32 = -1;
+
 /// Interpreter action to execute after executing instruction.
 pub enum InstructionOutcome {
 	/// Continue with next instruction.
@@ -35,6 +43,8 @@ pub enum InstructionOutcome {
 	ExecuteCall(FuncRef),
 	/// Return from current function block.
 	Return(isa::DropKeep),
+	//return for call_indirect
+	ReturnForCallIndirect,
 }
 
 #[derive(PartialEq, Eq)]
@@ -60,11 +70,31 @@ impl InterpreterState {
 }
 
 /// Function run result.
+#[derive(Clone)]
 enum RunResult {
 	/// Function has returned.
 	Return,
 	/// Function is calling other function.
 	NestedCall(FuncRef),
+	// add some code here
+	ReturnResultForCallIndirect,
+}
+
+impl fmt::Debug for RunResult {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match self {
+				//add some code
+				RunResult::ReturnResultForCallIndirect => {
+					write!(f, "RunResult::ReturnResultForCallIndirect")
+				}
+				RunResult::Return => {
+					write!(f, "RunResult::Return")
+				}
+				RunResult::NestedCall(nested_func) => {
+					write!(f, "RunResult::NestedCall {{ {:?} }}", nested_func)
+				}
+		}
+	}
 }
 
 /// Function interpreter.
@@ -109,18 +139,36 @@ impl Interpreter {
 	pub fn start_execution<'a, E: Externals + 'a>(&mut self, externals: &'a mut E) -> Result<Option<RuntimeValue>, Trap> {
 		// Ensure that the VM has not been executed. This is checked in `FuncInvocation::start_execution`.
 		assert!(self.state == InterpreterState::Initialized);
+		//reset those four static variables
+		unsafe {
+			stop = false;
+			message_check = -1;
+			args_static = "";
+			args_num = -1;
+		}
 
 		self.state = InterpreterState::Started;
 		self.run_interpreter_loop(externals)?;
 
-		let opt_return_value = self.return_type.map(|_vt| {
-			self.value_stack.pop()
-		});
+		let mut stop_execution :bool = false;
+		unsafe {
+			stop_execution = stop;
+		}
 
-		// Ensure that stack is empty after the execution. This is guaranteed by the validation properties.
-		assert!(self.value_stack.len() == 0);
+		if stop_execution == true {
+			Ok(None)
+		}
+		else {
+			let opt_return_value = self.return_type.map(|_vt| {
+				self.value_stack.pop()
+			});
 
-		Ok(opt_return_value)
+			// Ensure that stack is empty after the execution. This is guaranteed by the validation properties.
+			assert!(self.value_stack.len() == 0);
+
+			Ok(opt_return_value)
+		}
+
 	}
 
 	pub fn resume_execution<'a, E: Externals + 'a>(&mut self, return_val: Option<RuntimeValue>, externals: &'a mut E) -> Result<Option<RuntimeValue>, Trap> {
@@ -154,11 +202,16 @@ impl Interpreter {
 		// Ensure that stack is empty after the execution. This is guaranteed by the validation properties.
 		assert!(self.value_stack.len() == 0);
 
-		Ok(opt_return_value)
+		Ok(opt_return_value)		
+
 	}
 
 	fn run_interpreter_loop<'a, E: Externals + 'a>(&mut self, externals: &'a mut E) -> Result<(), Trap> {
+		let mut counter :i32 = 0;
 		loop {
+			counter = counter + 1;
+			//notes: those print info is to figure out how call_stack works
+			//println!("the {:?} round", counter);
 			let mut function_context = self.call_stack
 				.pop()
 				.expect("on loop entry - not empty; on loop continue - checking for emptiness; qed");
@@ -168,6 +221,8 @@ impl Interpreter {
 				.expect(
 					"Host functions checked in function_return below; Internal functions always have a body; qed"
 				);
+			//println!("function context is {:?}", function_ref.clone());
+			//println!("function context is {:?}", function_body.clone());
 
 			if !function_context.is_initialized() {
 				// Initialize stack frame for the function call.
@@ -180,7 +235,18 @@ impl Interpreter {
 					&function_body.code.code,
 				).map_err(Trap::new)?;
 
+			//println!("function return is {:?}", function_return);
 			match function_return {
+				//add some code
+				RunResult::ReturnResultForCallIndirect => {
+					//println!("before returning result for call indirect, the stack size is {:?} {:?}", self.call_stack.len(), self.value_stack.len());
+					//self.value_stack.pop_until_one();
+					unsafe {
+						stop = true;
+					}
+					return Ok(());
+				}
+
 				RunResult::Return => {
 					if self.call_stack.last().is_none() {
 						// This was the last frame in the call stack. This means we
@@ -242,6 +308,8 @@ impl Interpreter {
 					self.value_stack.drop_keep(target.drop_keep);
 				},
 				InstructionOutcome::ExecuteCall(func_ref) => {
+					println!("Before executing the function, the value stack is as follows.");
+					self.value_stack.print_value_stack();
 					function_context.position += 1;
 					return Ok(RunResult::NestedCall(func_ref));
 				},
@@ -249,6 +317,11 @@ impl Interpreter {
 					self.value_stack.drop_keep(drop_keep);
 					break;
 				},
+				//add some code here
+				InstructionOutcome::ReturnForCallIndirect => {
+					//println!("stop because someone calls an function that does not exit in its module" );
+					return Ok(RunResult::ReturnResultForCallIndirect);
+				}
 			}
 		}
 
@@ -509,6 +582,7 @@ impl Interpreter {
 		signature_idx: u32,
 	) -> Result<InstructionOutcome, TrapKind> {
 		let table_func_idx: u32 = self.value_stack.pop_as();
+
 		let table = context
 			.module()
 			.table_by_index(DEFAULT_TABLE_INDEX)
@@ -528,8 +602,30 @@ impl Interpreter {
 				return Err(TrapKind::UnexpectedSignature);
 			}
 		}
-
-		Ok(InstructionOutcome::ExecuteCall(func_ref))
+		//print all the funcs this module has
+		//context.module().show_funcs();
+		let result = context.module().has_func(func_ref.clone());
+		if result == true {
+			println!("Result is true, so the function is in this module.");
+			Ok(InstructionOutcome::ExecuteCall(func_ref))
+		}
+		else {
+			println!("Result is false, so the function is in this module. We need to get the info of this function.");
+			self.value_stack.print_value_stack();
+			unsafe{
+				// Step1: get the number of arguments of this function and assign it to the static variable
+				args_num = func_ref.signature().params_num() as i32;
+				// Step2: get the arguments of this function and assign it to the static variable
+				let tempt_result = self.value_stack.get_args();
+				args_static = string_to_static_str(tempt_result);
+				//println!("args is {:?}", args_static);
+				// Step3: get the function body(table id) of this function
+				message_check = table_func_idx as i32;
+				//println!("message_check is set to be {:?}", message_check);
+			}
+			Ok(InstructionOutcome::ReturnForCallIndirect)
+		}
+		
 	}
 
 	fn run_drop(&mut self) -> Result<InstructionOutcome, TrapKind> {
@@ -1181,7 +1277,7 @@ pub fn check_function_args(signature: &Signature, args: &[RuntimeValue]) -> Resu
 	Ok(())
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct ValueStack {
 	buf: Box<[RuntimeValue]>,
 	/// Index of the first free place in the stack.
@@ -1269,4 +1365,34 @@ impl ValueStack {
 	fn len(&self) -> usize {
 		self.sp
 	}
+
+	//add new code. why left with some value in the value_stack?
+	#[inline]
+	fn print_value_stack(&mut self) {
+		let stack_cp = self.clone();
+		let mut index = self.sp.clone();
+		while index > 0 {
+			index -= 1;
+			println!("pop index {:?} is {:?}", index, stack_cp.buf[index]);
+		}
+	}
+
+	#[inline]
+	fn get_args(&mut self) -> String {
+		let mut stack_cp = self.clone();
+		let mut args_mut: String = String::new();
+		unsafe{
+			while args_num > 0 {
+				args_num = args_num - 1;
+				let tempt = stack_cp.pop_as::<i32>();;
+				args_mut = args_mut + &tempt.to_string() + "+";
+			}
+		}
+		args_mut
+	}
+}
+
+//add a new function
+fn string_to_static_str(s: String) -> &'static str {
+    Box::leak(s.into_boxed_str())
 }

@@ -62,6 +62,12 @@ impl Signature {
 			return_type: func_type.return_type().map(ValueType::from_elements),
 		}
 	}
+
+	// add a new function
+	/// Returns number of parameters of this signature.
+	pub fn params_num(&self) -> usize {
+		self.params.len()
+	}
 }
 
 /// Type of a value.
