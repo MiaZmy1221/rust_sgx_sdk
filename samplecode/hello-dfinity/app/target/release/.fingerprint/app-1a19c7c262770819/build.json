@@ -1,1 +1,1 @@
-{"rustc":0,"features":"","target":0,"profile":0,"path":0,"deps":[],"local":[{"Precalculated":"1541710978.440203513s (/root/sgx/samplecode/hello-dfinity/app/Enclave_u.o)"}],"rustflags":[],"edition":"Edition2015"}
+{"rustc":0,"features":"","target":0,"profile":0,"path":0,"deps":[],"local":[{"Precalculated":"1545274100.860778993s (/root/sgx/samplecode/hello-dfinity/app/Enclave_u.o)"}],"rustflags":[],"edition":"Edition2015"}

@@ -7,11 +7,10 @@ enclave {
     untrusted {
         ssize_t u_write_ocall(int fd, [in, size=count] const void *buf, size_t count);
         int buildmerkletree([user_check] struct MerkleTree* tree);
-	void MTPrintNodeByIndex([in] struct MerkleTree* treeptr, int idx);
+        int writemerkletree([user_check] struct MerkleTree* tree);
+	    void MTPrintNodeByIndex([in] struct MerkleTree* treeptr, int idx);
         void MTUpdateNode([user_check]struct MerkleTree* treeptr, int idx);
-//        LinkedNode* MTGetNodePath([user_check]struct MerkleTree* treeptr, int idx);
-//	Node* MTReadNode([user_check]struct MerkleTree* treeptr, int idx);
-	void MTGetMerkleProof([user_check]struct MerkleTree* treeptr, int nodeidx, [user_check]MerkleProof* pointer);
+        MerkleProof* MTGetMerkleProof([user_check]struct MerkleTree* treeptr, int nodeidx);
     };
 
 };

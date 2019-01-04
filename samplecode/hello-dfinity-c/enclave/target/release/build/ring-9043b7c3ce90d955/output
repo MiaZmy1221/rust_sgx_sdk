@@ -1,0 +1,237 @@
+running "perl" "crypto/fipsmodule/aes/asm/aes-x86_64.pl" "elf" "pregenerated/aes-x86_64-elf.S"
+running "perl" "crypto/fipsmodule/aes/asm/aesni-x86_64.pl" "elf" "pregenerated/aesni-x86_64-elf.S"
+running "perl" "crypto/fipsmodule/aes/asm/vpaes-x86_64.pl" "elf" "pregenerated/vpaes-x86_64-elf.S"
+running "perl" "crypto/fipsmodule/bn/asm/x86_64-mont.pl" "elf" "pregenerated/x86_64-mont-elf.S"
+running "perl" "crypto/fipsmodule/bn/asm/x86_64-mont5.pl" "elf" "pregenerated/x86_64-mont5-elf.S"
+running "perl" "crypto/chacha/asm/chacha-x86_64.pl" "elf" "pregenerated/chacha-x86_64-elf.S"
+running "perl" "crypto/fipsmodule/ec/asm/p256-x86_64-asm.pl" "elf" "pregenerated/p256-x86_64-asm-elf.S"
+running "perl" "crypto/fipsmodule/modes/asm/aesni-gcm-x86_64.pl" "elf" "pregenerated/aesni-gcm-x86_64-elf.S"
+running "perl" "crypto/fipsmodule/modes/asm/ghash-x86_64.pl" "elf" "pregenerated/ghash-x86_64-elf.S"
+running "perl" "crypto/poly1305/asm/poly1305-x86_64.pl" "elf" "pregenerated/poly1305-x86_64-elf.S"
+running "perl" "crypto/fipsmodule/sha/asm/sha512-x86_64.pl" "elf" "pregenerated/sha512-x86_64-elf.S"
+running "perl" "crypto/fipsmodule/sha/asm/sha512-x86_64.pl" "elf" "pregenerated/sha256-x86_64-elf.S"
+CARGO: /root/.rustup/toolchains/nightly-2018-10-01-x86_64-unknown-linux-gnu/bin/cargo
+CARGO_CFG_DEBUG_ASSERTIONS: 
+CARGO_CFG_PROC_MACRO: 
+CARGO_CFG_TARGET_ARCH: x86_64
+CARGO_CFG_TARGET_ENDIAN: little
+CARGO_CFG_TARGET_ENV: gnu
+CARGO_CFG_TARGET_FAMILY: unix
+CARGO_CFG_TARGET_FEATURE: fxsr,mmx,sse,sse2
+CARGO_CFG_TARGET_HAS_ATOMIC: 16,32,64,8,cas,ptr
+CARGO_CFG_TARGET_OS: linux
+CARGO_CFG_TARGET_POINTER_WIDTH: 64
+CARGO_CFG_TARGET_THREAD_LOCAL: 
+CARGO_CFG_TARGET_VENDOR: unknown
+CARGO_CFG_UNIX: 
+CARGO_FEATURE_DEFAULT: 1
+CARGO_FEATURE_DEV_URANDOM_FALLBACK: 1
+CARGO_FEATURE_RSA_SIGNING: 1
+CARGO_FEATURE_USE_HEAP: 1
+CARGO_HOME: /root/.cargo
+CARGO_MAKEFLAGS: --jobserver-fds=3,5 -j --jobserver-auth=3,5 -j
+CARGO_MANIFEST_DIR: /root/sgx/third_party/ring
+CARGO_MANIFEST_LINKS: ring-asm
+CARGO_PKG_AUTHORS: Brian Smith <brian@briansmith.org>
+CARGO_PKG_DESCRIPTION: Safe, fast, small crypto using Rust.
+CARGO_PKG_HOMEPAGE: 
+CARGO_PKG_NAME: ring
+CARGO_PKG_VERSION: 0.13.2
+CARGO_PKG_VERSION_MAJOR: 0
+CARGO_PKG_VERSION_MINOR: 13
+CARGO_PKG_VERSION_PATCH: 2
+CARGO_PKG_VERSION_PRE: 
+DEBUG: false
+HOME: /root
+HOST: x86_64-unknown-linux-gnu
+HOSTNAME: 44e6ff0c0b40
+LD_LIBRARY_PATH: /root/sgx/samplecode/hello-dfinity-c/enclave/target/release/deps:/root/.rustup/toolchains/nightly-2018-10-01-x86_64-unknown-linux-gnu/lib:/root/.rustup/toolchains/nightly-2018-10-01-x86_64-unknown-linux-gnu/lib:/opt/sgxsdk/sdk_libs
+LESSCLOSE: /usr/bin/lesspipe %s %s
+LESSOPEN: | /usr/bin/lesspipe %s
+LS_COLORS: rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.Z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.jpg=01;35:*.jpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:
+MAKEFLAGS: w
+MAKELEVEL: 2
+MAKE_TERMERR: /dev/pts/0
+MAKE_TERMOUT: /dev/pts/0
+MFLAGS: -w
+NUM_JOBS: 12
+OLDPWD: /root/sgx/samplecode
+OPT_LEVEL: 3
+OUT_DIR: /root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out
+PATH: /root/.cargo/bin:/root/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/sgxsdk/bin:/opt/sgxsdk/bin/x64
+PKG_CONFIG_PATH: :/opt/sgxsdk/pkgconfig
+PROFILE: release
+PWD: /root/sgx/samplecode/hello-dfinity-c
+RUSTC: rustc
+RUSTDOC: rustdoc
+RUSTUP_HOME: /root/.rustup
+RUSTUP_TOOLCHAIN: nightly-2018-10-01-x86_64-unknown-linux-gnu
+RUST_RECURSION_COUNT: 1
+SGX_SDK: /opt/sgxsdk
+SHLVL: 1
+SSL_CERT_DIR: /usr/lib/ssl/certs
+SSL_CERT_FILE: /usr/lib/ssl/certs/ca-certificates.crt
+TARGET: x86_64-unknown-linux-gnu
+TERM: xterm
+_: /usr/bin/make
+OPT_LEVEL = Some("3")
+TARGET = Some("x86_64-unknown-linux-gnu")
+HOST = Some("x86_64-unknown-linux-gnu")
+CC_x86_64-unknown-linux-gnu = None
+CC_x86_64_unknown_linux_gnu = None
+HOST_CC = None
+CC = None
+CFLAGS_x86_64-unknown-linux-gnu = None
+CFLAGS_x86_64_unknown_linux_gnu = None
+HOST_CFLAGS = None
+CFLAGS = None
+DEBUG = Some("false")
+running "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "include" "-Wall" "-Wextra" "-pedantic" "-pedantic-errors" "-Wall" "-Wextra" "-Wcast-align" "-Wcast-qual" "-Wenum-compare" "-Wfloat-equal" "-Wformat=2" "-Winline" "-Winvalid-pch" "-Wmissing-declarations" "-Wmissing-field-initializers" "-Wmissing-include-dirs" "-Wredundant-decls" "-Wshadow" "-Wsign-compare" "-Wundef" "-Wuninitialized" "-Wwrite-strings" "-fno-strict-aliasing" "-fvisibility=hidden" "-Wno-cast-align" "-fstack-protector" "-g3" "-DNDEBUG" "-D_XOPEN_SOURCE=700" "-c" "-o/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/aes-x86_64-elf.o" "/root/sgx/third_party/ring/pregenerated/aes-x86_64-elf.S"
+OPT_LEVEL = Some("3")
+TARGET = Some("x86_64-unknown-linux-gnu")
+HOST = Some("x86_64-unknown-linux-gnu")
+CC_x86_64-unknown-linux-gnu = None
+CC_x86_64_unknown_linux_gnu = None
+HOST_CC = None
+CC = None
+CFLAGS_x86_64-unknown-linux-gnu = None
+CFLAGS_x86_64_unknown_linux_gnu = None
+HOST_CFLAGS = None
+CFLAGS = None
+DEBUG = Some("false")
+running "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "include" "-Wall" "-Wextra" "-pedantic" "-pedantic-errors" "-Wall" "-Wextra" "-Wcast-align" "-Wcast-qual" "-Wenum-compare" "-Wfloat-equal" "-Wformat=2" "-Winline" "-Winvalid-pch" "-Wmissing-declarations" "-Wmissing-field-initializers" "-Wmissing-include-dirs" "-Wredundant-decls" "-Wshadow" "-Wsign-compare" "-Wundef" "-Wuninitialized" "-Wwrite-strings" "-fno-strict-aliasing" "-fvisibility=hidden" "-Wno-cast-align" "-fstack-protector" "-g3" "-DNDEBUG" "-D_XOPEN_SOURCE=700" "-c" "-o/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/aesni-x86_64-elf.o" "/root/sgx/third_party/ring/pregenerated/aesni-x86_64-elf.S"
+OPT_LEVEL = Some("3")
+TARGET = Some("x86_64-unknown-linux-gnu")
+HOST = Some("x86_64-unknown-linux-gnu")
+CC_x86_64-unknown-linux-gnu = None
+CC_x86_64_unknown_linux_gnu = None
+HOST_CC = None
+CC = None
+CFLAGS_x86_64-unknown-linux-gnu = None
+CFLAGS_x86_64_unknown_linux_gnu = None
+HOST_CFLAGS = None
+CFLAGS = None
+DEBUG = Some("false")
+running "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "include" "-Wall" "-Wextra" "-pedantic" "-pedantic-errors" "-Wall" "-Wextra" "-Wcast-align" "-Wcast-qual" "-Wenum-compare" "-Wfloat-equal" "-Wformat=2" "-Winline" "-Winvalid-pch" "-Wmissing-declarations" "-Wmissing-field-initializers" "-Wmissing-include-dirs" "-Wredundant-decls" "-Wshadow" "-Wsign-compare" "-Wundef" "-Wuninitialized" "-Wwrite-strings" "-fno-strict-aliasing" "-fvisibility=hidden" "-Wno-cast-align" "-fstack-protector" "-g3" "-DNDEBUG" "-D_XOPEN_SOURCE=700" "-c" "-o/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/vpaes-x86_64-elf.o" "/root/sgx/third_party/ring/pregenerated/vpaes-x86_64-elf.S"
+OPT_LEVEL = Some("3")
+TARGET = Some("x86_64-unknown-linux-gnu")
+HOST = Some("x86_64-unknown-linux-gnu")
+CC_x86_64-unknown-linux-gnu = None
+CC_x86_64_unknown_linux_gnu = None
+HOST_CC = None
+CC = None
+CFLAGS_x86_64-unknown-linux-gnu = None
+CFLAGS_x86_64_unknown_linux_gnu = None
+HOST_CFLAGS = None
+CFLAGS = None
+DEBUG = Some("false")
+running "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "include" "-Wall" "-Wextra" "-pedantic" "-pedantic-errors" "-Wall" "-Wextra" "-Wcast-align" "-Wcast-qual" "-Wenum-compare" "-Wfloat-equal" "-Wformat=2" "-Winline" "-Winvalid-pch" "-Wmissing-declarations" "-Wmissing-field-initializers" "-Wmissing-include-dirs" "-Wredundant-decls" "-Wshadow" "-Wsign-compare" "-Wundef" "-Wuninitialized" "-Wwrite-strings" "-fno-strict-aliasing" "-fvisibility=hidden" "-Wno-cast-align" "-fstack-protector" "-g3" "-DNDEBUG" "-D_XOPEN_SOURCE=700" "-c" "-o/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/x86_64-mont-elf.o" "/root/sgx/third_party/ring/pregenerated/x86_64-mont-elf.S"
+OPT_LEVEL = Some("3")
+TARGET = Some("x86_64-unknown-linux-gnu")
+HOST = Some("x86_64-unknown-linux-gnu")
+CC_x86_64-unknown-linux-gnu = None
+CC_x86_64_unknown_linux_gnu = None
+HOST_CC = None
+CC = None
+CFLAGS_x86_64-unknown-linux-gnu = None
+CFLAGS_x86_64_unknown_linux_gnu = None
+HOST_CFLAGS = None
+CFLAGS = None
+DEBUG = Some("false")
+running "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "include" "-Wall" "-Wextra" "-pedantic" "-pedantic-errors" "-Wall" "-Wextra" "-Wcast-align" "-Wcast-qual" "-Wenum-compare" "-Wfloat-equal" "-Wformat=2" "-Winline" "-Winvalid-pch" "-Wmissing-declarations" "-Wmissing-field-initializers" "-Wmissing-include-dirs" "-Wredundant-decls" "-Wshadow" "-Wsign-compare" "-Wundef" "-Wuninitialized" "-Wwrite-strings" "-fno-strict-aliasing" "-fvisibility=hidden" "-Wno-cast-align" "-fstack-protector" "-g3" "-DNDEBUG" "-D_XOPEN_SOURCE=700" "-c" "-o/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/x86_64-mont5-elf.o" "/root/sgx/third_party/ring/pregenerated/x86_64-mont5-elf.S"
+OPT_LEVEL = Some("3")
+TARGET = Some("x86_64-unknown-linux-gnu")
+HOST = Some("x86_64-unknown-linux-gnu")
+CC_x86_64-unknown-linux-gnu = None
+CC_x86_64_unknown_linux_gnu = None
+HOST_CC = None
+CC = None
+CFLAGS_x86_64-unknown-linux-gnu = None
+CFLAGS_x86_64_unknown_linux_gnu = None
+HOST_CFLAGS = None
+CFLAGS = None
+DEBUG = Some("false")
+running "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "include" "-Wall" "-Wextra" "-pedantic" "-pedantic-errors" "-Wall" "-Wextra" "-Wcast-align" "-Wcast-qual" "-Wenum-compare" "-Wfloat-equal" "-Wformat=2" "-Winline" "-Winvalid-pch" "-Wmissing-declarations" "-Wmissing-field-initializers" "-Wmissing-include-dirs" "-Wredundant-decls" "-Wshadow" "-Wsign-compare" "-Wundef" "-Wuninitialized" "-Wwrite-strings" "-fno-strict-aliasing" "-fvisibility=hidden" "-Wno-cast-align" "-fstack-protector" "-g3" "-DNDEBUG" "-D_XOPEN_SOURCE=700" "-c" "-o/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/chacha-x86_64-elf.o" "/root/sgx/third_party/ring/pregenerated/chacha-x86_64-elf.S"
+OPT_LEVEL = Some("3")
+TARGET = Some("x86_64-unknown-linux-gnu")
+HOST = Some("x86_64-unknown-linux-gnu")
+CC_x86_64-unknown-linux-gnu = None
+CC_x86_64_unknown_linux_gnu = None
+HOST_CC = None
+CC = None
+CFLAGS_x86_64-unknown-linux-gnu = None
+CFLAGS_x86_64_unknown_linux_gnu = None
+HOST_CFLAGS = None
+CFLAGS = None
+DEBUG = Some("false")
+running "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "include" "-Wall" "-Wextra" "-pedantic" "-pedantic-errors" "-Wall" "-Wextra" "-Wcast-align" "-Wcast-qual" "-Wenum-compare" "-Wfloat-equal" "-Wformat=2" "-Winline" "-Winvalid-pch" "-Wmissing-declarations" "-Wmissing-field-initializers" "-Wmissing-include-dirs" "-Wredundant-decls" "-Wshadow" "-Wsign-compare" "-Wundef" "-Wuninitialized" "-Wwrite-strings" "-fno-strict-aliasing" "-fvisibility=hidden" "-Wno-cast-align" "-fstack-protector" "-g3" "-DNDEBUG" "-D_XOPEN_SOURCE=700" "-c" "-o/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/p256-x86_64-asm-elf.o" "/root/sgx/third_party/ring/pregenerated/p256-x86_64-asm-elf.S"
+OPT_LEVEL = Some("3")
+TARGET = Some("x86_64-unknown-linux-gnu")
+HOST = Some("x86_64-unknown-linux-gnu")
+CC_x86_64-unknown-linux-gnu = None
+CC_x86_64_unknown_linux_gnu = None
+HOST_CC = None
+CC = None
+CFLAGS_x86_64-unknown-linux-gnu = None
+CFLAGS_x86_64_unknown_linux_gnu = None
+HOST_CFLAGS = None
+CFLAGS = None
+DEBUG = Some("false")
+running "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "include" "-Wall" "-Wextra" "-pedantic" "-pedantic-errors" "-Wall" "-Wextra" "-Wcast-align" "-Wcast-qual" "-Wenum-compare" "-Wfloat-equal" "-Wformat=2" "-Winline" "-Winvalid-pch" "-Wmissing-declarations" "-Wmissing-field-initializers" "-Wmissing-include-dirs" "-Wredundant-decls" "-Wshadow" "-Wsign-compare" "-Wundef" "-Wuninitialized" "-Wwrite-strings" "-fno-strict-aliasing" "-fvisibility=hidden" "-Wno-cast-align" "-fstack-protector" "-g3" "-DNDEBUG" "-D_XOPEN_SOURCE=700" "-c" "-o/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/aesni-gcm-x86_64-elf.o" "/root/sgx/third_party/ring/pregenerated/aesni-gcm-x86_64-elf.S"
+OPT_LEVEL = Some("3")
+TARGET = Some("x86_64-unknown-linux-gnu")
+HOST = Some("x86_64-unknown-linux-gnu")
+CC_x86_64-unknown-linux-gnu = None
+CC_x86_64_unknown_linux_gnu = None
+HOST_CC = None
+CC = None
+CFLAGS_x86_64-unknown-linux-gnu = None
+CFLAGS_x86_64_unknown_linux_gnu = None
+HOST_CFLAGS = None
+CFLAGS = None
+DEBUG = Some("false")
+running "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "include" "-Wall" "-Wextra" "-pedantic" "-pedantic-errors" "-Wall" "-Wextra" "-Wcast-align" "-Wcast-qual" "-Wenum-compare" "-Wfloat-equal" "-Wformat=2" "-Winline" "-Winvalid-pch" "-Wmissing-declarations" "-Wmissing-field-initializers" "-Wmissing-include-dirs" "-Wredundant-decls" "-Wshadow" "-Wsign-compare" "-Wundef" "-Wuninitialized" "-Wwrite-strings" "-fno-strict-aliasing" "-fvisibility=hidden" "-Wno-cast-align" "-fstack-protector" "-g3" "-DNDEBUG" "-D_XOPEN_SOURCE=700" "-c" "-o/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/ghash-x86_64-elf.o" "/root/sgx/third_party/ring/pregenerated/ghash-x86_64-elf.S"
+OPT_LEVEL = Some("3")
+TARGET = Some("x86_64-unknown-linux-gnu")
+HOST = Some("x86_64-unknown-linux-gnu")
+CC_x86_64-unknown-linux-gnu = None
+CC_x86_64_unknown_linux_gnu = None
+HOST_CC = None
+CC = None
+CFLAGS_x86_64-unknown-linux-gnu = None
+CFLAGS_x86_64_unknown_linux_gnu = None
+HOST_CFLAGS = None
+CFLAGS = None
+DEBUG = Some("false")
+running "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "include" "-Wall" "-Wextra" "-pedantic" "-pedantic-errors" "-Wall" "-Wextra" "-Wcast-align" "-Wcast-qual" "-Wenum-compare" "-Wfloat-equal" "-Wformat=2" "-Winline" "-Winvalid-pch" "-Wmissing-declarations" "-Wmissing-field-initializers" "-Wmissing-include-dirs" "-Wredundant-decls" "-Wshadow" "-Wsign-compare" "-Wundef" "-Wuninitialized" "-Wwrite-strings" "-fno-strict-aliasing" "-fvisibility=hidden" "-Wno-cast-align" "-fstack-protector" "-g3" "-DNDEBUG" "-D_XOPEN_SOURCE=700" "-c" "-o/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/poly1305-x86_64-elf.o" "/root/sgx/third_party/ring/pregenerated/poly1305-x86_64-elf.S"
+OPT_LEVEL = Some("3")
+TARGET = Some("x86_64-unknown-linux-gnu")
+HOST = Some("x86_64-unknown-linux-gnu")
+CC_x86_64-unknown-linux-gnu = None
+CC_x86_64_unknown_linux_gnu = None
+HOST_CC = None
+CC = None
+CFLAGS_x86_64-unknown-linux-gnu = None
+CFLAGS_x86_64_unknown_linux_gnu = None
+HOST_CFLAGS = None
+CFLAGS = None
+DEBUG = Some("false")
+running "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "include" "-Wall" "-Wextra" "-pedantic" "-pedantic-errors" "-Wall" "-Wextra" "-Wcast-align" "-Wcast-qual" "-Wenum-compare" "-Wfloat-equal" "-Wformat=2" "-Winline" "-Winvalid-pch" "-Wmissing-declarations" "-Wmissing-field-initializers" "-Wmissing-include-dirs" "-Wredundant-decls" "-Wshadow" "-Wsign-compare" "-Wundef" "-Wuninitialized" "-Wwrite-strings" "-fno-strict-aliasing" "-fvisibility=hidden" "-Wno-cast-align" "-fstack-protector" "-g3" "-DNDEBUG" "-D_XOPEN_SOURCE=700" "-c" "-o/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/sha512-x86_64-elf.o" "/root/sgx/third_party/ring/pregenerated/sha512-x86_64-elf.S"
+OPT_LEVEL = Some("3")
+TARGET = Some("x86_64-unknown-linux-gnu")
+HOST = Some("x86_64-unknown-linux-gnu")
+CC_x86_64-unknown-linux-gnu = None
+CC_x86_64_unknown_linux_gnu = None
+HOST_CC = None
+CC = None
+CFLAGS_x86_64-unknown-linux-gnu = None
+CFLAGS_x86_64_unknown_linux_gnu = None
+HOST_CFLAGS = None
+CFLAGS = None
+DEBUG = Some("false")
+running "cc" "-O3" "-ffunction-sections" "-fdata-sections" "-fPIC" "-m64" "-I" "include" "-Wall" "-Wextra" "-pedantic" "-pedantic-errors" "-Wall" "-Wextra" "-Wcast-align" "-Wcast-qual" "-Wenum-compare" "-Wfloat-equal" "-Wformat=2" "-Winline" "-Winvalid-pch" "-Wmissing-declarations" "-Wmissing-field-initializers" "-Wmissing-include-dirs" "-Wredundant-decls" "-Wshadow" "-Wsign-compare" "-Wundef" "-Wuninitialized" "-Wwrite-strings" "-fno-strict-aliasing" "-fvisibility=hidden" "-Wno-cast-align" "-fstack-protector" "-g3" "-DNDEBUG" "-D_XOPEN_SOURCE=700" "-c" "-o/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/sha256-x86_64-elf.o" "/root/sgx/third_party/ring/pregenerated/sha256-x86_64-elf.S"
+running: "ar" "crs" "/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/libring-core.a" "/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/aes-x86_64-elf.o" "/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/aesni-x86_64-elf.o" "/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/vpaes-x86_64-elf.o" "/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/x86_64-mont-elf.o" "/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/x86_64-mont5-elf.o" "/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/chacha-x86_64-elf.o" "/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/p256-x86_64-asm-elf.o" "/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/aesni-gcm-x86_64-elf.o" "/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/ghash-x86_64-elf.o" "/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/poly1305-x86_64-elf.o" "/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/sha512-x86_64-elf.o" "/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/sha256-x86_64-elf.o" "/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/aes.o" "/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/exponentiation.o" "/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/generic.o" "/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/montgomery.o" "/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/montgomery_inv.o" "/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/shift.o" "/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/e_aes.o" "/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/crypto.o" "/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/ecp_nistz.o" "/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/ecp_nistz256.o" "/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/gfp_p256.o" "/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/gfp_p384.o" "/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/limbs.o" "/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/mem.o" "/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/gcm.o" "/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/curve25519.o" "/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out/cpu-intel.o"
+exit code: 0
+cargo:rustc-link-lib=static=ring-core
+cargo:rustc-link-lib=static=ring-test
+cargo:rustc-link-search=native=/root/sgx/samplecode/hello-dfinity-c/enclave/target/release/build/ring-9043b7c3ce90d955/out

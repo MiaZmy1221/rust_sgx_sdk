@@ -172,19 +172,16 @@ impl ModuleInstance {
 		}
 	}
 
-	// add some code here
+	/// Get a module's memory by index.
+	///
+	/// Change this function from pub(crate) to pub so that other modules can call this function.
 	pub fn memory_by_index(&self, idx: u32) -> Option<MemoryRef> {
 		self.memories.borrow_mut().get(idx as usize).cloned()
 	}
 
-	pub fn show_funcs(&self) {
-		let funcs = self.funcs.borrow();
-		println!("funcs is {:?}", funcs);
-	}
-
+	/// Check wether a module contains a given function.
 	pub fn has_func(&self, func: FuncRef) -> bool {
 		let funcs = self.funcs.borrow();
-		//let result = funcs.contains(&func);
 		for function in funcs.to_vec() {
 		    if function == func {
 		    	return true;
@@ -217,7 +214,7 @@ impl ModuleInstance {
 		self.signatures.borrow_mut().push(signature)
 	}
 
-	// change the function to public
+	/// Change this function from pub(crate) to pub so that other modules can call this function.
 	pub fn push_memory(&self, memory: MemoryRef) {
 		self.memories.borrow_mut().push(memory)
 	}

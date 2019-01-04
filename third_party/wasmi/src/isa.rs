@@ -304,6 +304,9 @@ pub struct Instructions {
 	pub code: Vec<Instruction>,
 }
 
+/// A property for comparing two objects.
+///
+/// Adding this property is for comparing two FuncBody objects.
 impl PartialEq for Instructions {
     fn eq(&self, other: &Instructions) -> bool {
         self.code == other.code

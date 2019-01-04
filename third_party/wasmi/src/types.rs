@@ -63,7 +63,6 @@ impl Signature {
 		}
 	}
 
-	// add a new function
 	/// Returns number of parameters of this signature.
 	pub fn params_num(&self) -> usize {
 		self.params.len()

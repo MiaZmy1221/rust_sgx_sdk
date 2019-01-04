@@ -378,7 +378,8 @@ mod global;
 mod func;
 mod types;
 mod isa;
-//add some code here
+
+/// A new added module about messages.
 mod message;
 
 #[cfg(test)]
@@ -393,8 +394,16 @@ pub use self::module::{ModuleInstance, ModuleRef, ExternVal, NotStartedModuleRef
 pub use self::global::{GlobalInstance, GlobalRef};
 pub use self::func::{FuncInstance, FuncRef, FuncInvocation, ResumableError};
 pub use self::types::{Signature, ValueType, GlobalDescriptor, TableDescriptor, MemoryDescriptor};
-//add some code here
+
+/// Message represents one message and MessageArray is the list of messages.
+///
+/// Every actor has its own message array.
 pub use self::message::{Message, MessageArray};
+
+/// Static global variables in file runner.rs.
+///
+/// Message_check is to check whether there is a new produced message or not because of some actor's unappropriate call of another actor's functions. 
+/// Args_static is to preserve arguments of the called functions.  
 pub use self::runner::{message_check, args_static};
 
 /// WebAssembly-specific sizes and units.
@@ -546,13 +555,7 @@ impl Module {
 			.map_err(|e: parity_wasm::elements::Error| Error::Validation(e.to_string()))?;
 		Module::from_parity_wasm_module(module)
 	}
-	/*
-	//add new code 
-	pub fn from_buffer_wast(wast_str :&str) -> Result<Module, Error> {
-		let wasm_binary: Vec<u8> = wabt::wat2wasm(wast_str).expect("failed to parse wat");
-		Module::from_buffer(&wasm_binary)
-	}
-	*/
+	
 	pub(crate) fn module(&self) -> &parity_wasm::elements::Module {
 		&self.module
 	}

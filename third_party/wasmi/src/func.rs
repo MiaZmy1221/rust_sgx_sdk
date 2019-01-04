@@ -26,6 +26,10 @@ impl ::std::ops::Deref for FuncRef {
 	}
 }
 
+/// A property for comparing two objects.
+///
+/// Comparing the following order:
+/// FuncRef -> FuncInstance -> FuncBody and FuncSignature -> Instructions(in file isa.rs).
 impl PartialEq for FuncRef {
     fn eq(&self, other: &FuncRef) -> bool {
         let func1 = &self.0;
@@ -87,35 +91,33 @@ impl fmt::Debug for FuncInstance {
 	}
 }
 
+/// A property for comparing two objects.
+///
+/// If those two FuncInstances are both 'internal', compare their func bodys and signatures. If equal, return ture.
+/// If those two FuncInstances are both 'host', return false directly.
+/// In other cases, return false.
 impl PartialEq for FuncInstance {
     fn eq(&self, other: &FuncInstance) -> bool {
         let func1 = self.is_internal();
         let func2 = other.is_internal();
-        //println!("for every function func1 func2 {:?} {:?}", self.clone(), other.clone());
-        //println!("for every function func1 func2 {:?} {:?}", func1, func2);
         if func1 == true && func2 == true {
         	let body1 = self.body();
         	let body2 = other.body();
         	let signature1 = self.signature();
         	let signature2 = other.signature();
         	if body1 == body2 && signature1 == signature2 {
-        		println!("for true function func1 func2 {:?} {:?}", self.clone(), other.clone());
         		return true;
         	}
         }
-
         if func1 == false && func2 == false {
-        	//do not know  how to do with host functions 
         	return false;
         }
-
         return false;
     }
 }
 
 
 impl FuncInstance {
-
 	/// Allocate a function instance for a host function.
 	///
 	/// When this function instance will be called by the wasm code,
@@ -168,7 +170,9 @@ impl FuncInstance {
 		}
 	}
 
-	// add some functions here
+	/// Determine whether this FuncInstance is 'internal' or 'host'.
+	/// 
+	/// This funcion is added for implementing "impl PartialEq for FuncInstance".
 	pub fn is_internal(&self) -> bool {
 		match *self.as_internal() {
 			FuncInstanceInternal::Internal { .. } => true,
@@ -359,6 +363,9 @@ pub struct FuncBody {
 	pub code: isa::Instructions,
 }
 
+/// A property for comparing two objects.
+///
+/// Compare two FuncBody.
 impl PartialEq for FuncBody {
     fn eq(&self, other: &FuncBody) -> bool {
         self.locals == other.locals && self.code == self.code 

@@ -60,7 +60,6 @@ pub struct MemoryInstance {
 	maximum: Option<Pages>,
 }
 
-// change the display of the memory
 impl fmt::Debug for MemoryInstance {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		f.debug_struct("MemoryInstance")
@@ -207,7 +206,7 @@ impl MemoryInstance {
 		Ok(())
 	}
 
-	// add new code here
+	/// Get the whole buffer of the given memory.
 	pub fn get_whole_buf(&self) -> Result<Vec<u8>, Error> {
 		let buffer = self.buffer.borrow_mut();
 
@@ -367,8 +366,6 @@ impl MemoryInstance {
 	///
 	/// If the same memory instance passed as `src` and `dst` then usual `copy` will be used.
 	pub fn transfer(src: &MemoryRef, src_offset: usize, dst: &MemoryRef, dst_offset: usize, len: usize) -> Result<(), Error> {
-		// Because memory references point to different memory instances, it is safe to `borrow_mut`
-		// both buffers at once (modulo `with_direct_access_mut`).
 		let mut src_buffer = src.buffer.borrow_mut();
 		let mut dst_buffer = dst.buffer.borrow_mut();
 

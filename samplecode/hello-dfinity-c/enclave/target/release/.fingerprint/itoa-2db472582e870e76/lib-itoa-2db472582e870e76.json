@@ -1,0 +1,1 @@
+{"rustc":16535438916300472388,"features":"[]","target":16708774977754927475,"profile":4526152405984878336,"path":11397089154928850053,"deps":[["sgx_tstd v1.0.4 (/root/sgx/sgx_tstd)","sgx_tstd",11229228496099529282]],"local":[{"MtimeBased":[[1545273672,408066306],".fingerprint/itoa-2db472582e870e76/dep-lib-itoa-2db472582e870e76"]}],"rustflags":[],"edition":"Edition2015"}

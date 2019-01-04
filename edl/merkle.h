@@ -4,7 +4,7 @@
 #define MAX_LEAF_NODE 64
 #define MAX_NODE MAX_LEAF_NODE*2
 #define MAX_TREE_LEVEL 7
-#define MAX_LEN 256
+#define MAX_LEN 2048
 #define MAX_HASH_LEN 10 // used for printing the hash
 #define ROOT 1	// the root idx is 1!
 

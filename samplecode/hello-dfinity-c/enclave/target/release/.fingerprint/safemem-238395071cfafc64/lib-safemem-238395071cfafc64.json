@@ -1,0 +1,1 @@
+{"rustc":16535438916300472388,"features":"[]","target":9863204760573333342,"profile":4526152405984878336,"path":6477037784785722460,"deps":[["sgx_tstd v1.0.4 (/root/sgx/sgx_tstd)","sgx_tstd",11229228496099529282]],"local":[{"MtimeBased":[[1545273672,664064374],".fingerprint/safemem-238395071cfafc64/dep-lib-safemem-238395071cfafc64"]}],"rustflags":[],"edition":"Edition2015"}
