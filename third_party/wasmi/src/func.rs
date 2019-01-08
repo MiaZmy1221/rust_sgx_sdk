@@ -11,6 +11,12 @@ use types::ValueType;
 use module::ModuleInstance;
 use isa;
 
+/// Changes compared to the previous file:
+///
+/// 1) Mainly add implementations of PartialEq for some objects so that we can compare two func objects.
+/// 2) Add a function called is_internal to check whether a function is 'internal' or 'host'.
+
+
 /// Reference to a function (See [`FuncInstance`] for details).
 ///
 /// This reference has a reference-counting semantics.

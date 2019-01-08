@@ -11,6 +11,12 @@ use Error;
 use memory_units::{RoundUpTo, Pages, Bytes};
 use value::LittleEndianConvert;
 
+/// Changes compared to the previous file:
+///
+/// 1) Add two functions: get_whole_buf() is used to get the whole buffer of the given memory.
+///						  transfer() is similar as copy().
+
+
 /// Size of a page of [linear memory][`MemoryInstance`] - 64KiB.
 ///
 /// The size of a memory is always a integer multiple of a page size.

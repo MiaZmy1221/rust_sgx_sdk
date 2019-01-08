@@ -122,6 +122,11 @@ use std::prelude::v1::*;
 use std::fmt;
 use std::error;
 
+/// Changes compared to the previous file:
+///
+/// 1) Add declaration of new added module message and some static variables for future use.
+
+
 /// Error type which can be thrown by wasm code or by host environment.
 ///
 /// Under some conditions, wasm execution may produce a `Trap`, which immediately aborts execution.

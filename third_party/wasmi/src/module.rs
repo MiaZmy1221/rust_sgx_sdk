@@ -18,6 +18,11 @@ use common::{DEFAULT_MEMORY_INDEX, DEFAULT_TABLE_INDEX};
 use types::{GlobalDescriptor, TableDescriptor, MemoryDescriptor};
 use memory_units::Pages;
 
+/// Changes compared to the previous file:
+///
+/// 1) Add a new function: has_func() is used to check whether a module contains the given function.
+/// 2) Change push_memory() access control from pub(crate) to pub so that modules outside the crate can call this function.
+
 /// Reference to a [`ModuleInstance`].
 ///
 /// This reference has a reference-counting semantics.

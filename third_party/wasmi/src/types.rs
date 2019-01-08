@@ -3,6 +3,11 @@ use std::borrow::Cow;
 use parity_wasm::elements::{
 	FunctionType, ValueType as EValueType, GlobalType, TableType, MemoryType};
 
+/// Changes compared to the previous file:
+///
+/// 1) Add a new function named params_num(), which is used for counting parameters of a function.
+
+
 /// Signature of a [function].
 ///
 /// Signature of a function consists of zero or more parameter [types][type] and zero or one return [type].

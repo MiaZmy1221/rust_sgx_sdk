@@ -73,6 +73,10 @@
 /// values at the moment.
 use std::prelude::v1::*;
 
+/// Changes compared to the previous file:
+///
+/// 1) Add the implementation of PartialEq for Instructions in order to compare two FuncBody objects in file func.rs.
+
 #[repr(u8)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Keep {

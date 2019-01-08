@@ -9,6 +9,10 @@ use Error;
 use func::FuncRef;
 use module::check_limits;
 
+/// Changes compared to the previous file:
+///
+/// 1) Add a buffer field to display in " impl fmt:Debug for TableInstance".
+
 /// Reference to a table (See [`TableInstance`] for details).
 ///
 /// This reference has a reference-counting semantics.
