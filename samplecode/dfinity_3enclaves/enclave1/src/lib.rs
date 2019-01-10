@@ -74,6 +74,22 @@ use std::ffi::CString;
 use std::boxed::Box;
 use sgx_trts::memeq::ConsttimeMemEq;
 
+/// Wasmi
+#[macro_use]
+extern crate lazy_static;
+extern crate wasmi;
+extern crate sgxwasm;
+use std::sync::SgxMutex;
+use sgxwasm::{SpecDriver, boundary_value_to_runtime_value, result_covert};
+use wasmi::{ModuleInstance, ImportsBuilder, RuntimeValue, Error as InterpreterError, Module, NopExternals};
+use wasmi::{message_check, args_static};
+use wasmi::{Message, MessageArray, TrapKind};
+
+/// Get the module, lazy_static has a mutex to lock variables when necessary.
+lazy_static!{
+    static ref SPECDRIVER: SgxMutex<SpecDriver> = SgxMutex::new(SpecDriver::new());
+}
+
 
 fn verify_peer_enclave_trust(peer_enclave_identity: &sgx_dh_session_enclave_identity_t )-> u32 {
 
@@ -156,6 +172,12 @@ pub struct MerkleProof
 
    pub path: [Node; 7],
 
+}
+
+#[repr(C)]
+pub struct MessageInC {
+    pub func: [u8; 1000],
+    pub params: [i32; 100],
 }
 
 }
@@ -520,7 +542,8 @@ pub extern "C" fn ecall_merkle_tree_entry(codeproof: *mut MerkleProof, dataproof
                                 wasmfunc_ptr: *mut u8, wasmfunc_len: c_int,
                                 wasmargs_ptr: *mut i32, wasmargs_len: c_int,
                                 data_out: *mut u8, tx_out: *mut u8, newhash_ptr: *mut u32,
-                                ti: &sgx_target_info_t) -> sgx_status_t { 
+                                ti: &sgx_target_info_t,
+                                msg_array: &mut [MessageInC; 100], msg_count: *mut c_int, msg_size: c_int) -> sgx_status_t { 
 
     // Step 1: check MerkleProof of code/data
     if !MTCheckMerkleProof(codeproof) || !MTCheckMerkleProof(dataproof)
@@ -554,12 +577,61 @@ pub extern "C" fn ecall_merkle_tree_entry(codeproof: *mut MerkleProof, dataproof
     println!("\n\nInside ecall_merkle_tree_entry(): oldhash {}, wasmfunc: {:?}, wasmargs: {:?}", 
             oldhash, wasmfunc_str, wasmargs_vec);
 
-    let memory = run_dfinity_with_export_memory(&mut code_decrypted, 
-                 &data_decrypted, &wasmfunc_str, wasmargs_vec.clone());
-    println!("\n\nInside ecall_merkle_tree_entry(): new memory is {:?}", memory);
+    //pass messages to app here
+
+    //tempt replace of real run function
+    //let messageArray = run_dfinity_with_export_memory(&mut code_decrypted, &mut data_decrypted, &wasmfunc_str, wasmargs_vec.clone());
+    // for test, let data_buf(data_decrypted) 
+    let messageArray = dfinity_code_run();
+    // println!("\n\nInside ecall_merkle_tree_entry(): new memory is {:?}", data_decrypted);
+
+    println!("message will be passed are {:?}", messageArray);
+    println!("message number is {:?}", messageArray.length());
+    let tempt_count = messageArray.length() as i32;
+    unsafe{ptr::copy_nonoverlapping(&tempt_count as *const c_int, msg_count as *mut c_int, 1)};
+
+    let mut index: usize =0;
+    for msg_tempt in messageArray.msgArray {
+        let tempt_func = msg_tempt.function.unwrap();
+        let tempt_params = msg_tempt.args;
+        let passed_func_str = format!("{:?}", tempt_func);
+        let passed_func = passed_func_str.as_bytes(); 
+        println!("passed_func_str is {:?}", passed_func_str);
+
+        let mut array1 = [0; 1000];
+        for index_array in 0..passed_func.len() {
+            if index_array >= 1000 {
+                println!("the message's function length should be larger than 1000");
+                break;
+            }
+            array1[index_array] = passed_func[index_array];
+        }
+        println!("array1 is {:?}", array1.to_vec());
+
+        let mut array2 = [-1; 100];
+        for index_array in 0..tempt_params.len() {
+            if index_array >= 100 {
+                println!("the message's function parameters length should be larger than 100");
+                break;
+            }
+            array2[index_array] = tempt_params[index_array];
+        }
+        println!("array2 is {:?}", array2.to_vec());
+
+        let tempt_msg = MessageInC{func: array1, params: array2};
+        println!("tempt_msg is {:?} {:?}", tempt_msg.func.to_vec(), tempt_msg.params.to_vec());
+        if index >= 100 {
+            println!("messages are more than 100");
+            break;
+        }
+        msg_array[index] = tempt_msg;
+        index = index + 1;
+        println!("func and params in every message is {:?} {:?}",tempt_func, tempt_params );
+    }
+    //unsafe{ptr::copy_nonoverlapping(new_data.as_ptr(), data_out, new_data.len())};
 
     // Step 6: generate new ROOT inside the enclave
-    let new_data = construct_payload(&memory);
+    let new_data = construct_payload(&data_decrypted);
     let mut newroot = MTGenNewRootHash(dataproof, &new_data.as_bytes().to_vec());
     println!("Inside ecall_merkle_tree_entry(): new ROOT hash: {:?}", newroot);
 
@@ -593,32 +665,19 @@ pub extern "C" fn ecall_merkle_tree_entry(codeproof: *mut MerkleProof, dataproof
 }
 
 
-
-// wasmi
-#[macro_use]
-extern crate lazy_static;
-extern crate wasmi;
-extern crate sgxwasm;
-
-use std::sync::SgxMutex;
-
-use sgxwasm::{SpecDriver, boundary_value_to_runtime_value, result_covert};
-
-use wasmi::{ModuleInstance, ImportsBuilder, RuntimeValue, Error as InterpreterError, Module, NopExternals};
-
-use wasmi::{message_check, args_static};
-use wasmi::{Message, MessageArray, TrapKind};
-
+/// Wasmi
+/// Add some use declarations.
 use std::fmt;
-//for DfinityFunc
 use wasmi::{TableInstance, TableRef, FuncInstance, FuncRef, Signature, ModuleImportResolver, ValueType, Trap, RuntimeArgs, Externals};
 use std::collections::HashMap;
-//for DfinityData
 use wasmi::{MemoryInstance, MemoryRef};
 use wasmi::memory_units::Pages;
 use std::borrow::BorrowMut;
 
-//Step1: struct
+/// Struct DfinityFunc is used when the wast file containing import func's internalize and externalize functions.
+/// Field table represents the given module's table, which will be used in the two imported functions.
+/// Field funcmap is used to store the (index, funcRef) key-value relationship.
+/// Field counter is used to assign a funcRef's index.
 #[derive(Clone)]
 pub struct DfinityFunc {
     pub table: Option<TableRef>,
@@ -636,7 +695,6 @@ impl fmt::Debug for DfinityFunc {
     }
 }
 
-//Step2: impl struct  //add a new function
 impl DfinityFunc {
     fn new() -> DfinityFunc {
         DfinityFunc {
@@ -646,55 +704,38 @@ impl DfinityFunc {
         }
     }
 }
-//Step3: define func index
+
+/// Define the two imported functions' index.
 const FUNC_EXTERNALIZE: usize = 0;
 const FUNC_INTERNALIZE: usize = 1;
 
-//Step4: imple Externals
+/// Implement struct DfinityFunc's trait Externals.
+/// Actually, this trait is to realize functions internalize and externalize.
+/// Function externalize loads a function in table into the funcmap.
+/// Function internalize does the opposite thing.
 impl Externals for DfinityFunc {
-    fn invoke_index(
-        &mut self,
-        index: usize,
-        args: RuntimeArgs,
-    ) -> Result<Option<RuntimeValue>, Trap> {
+    fn invoke_index(&mut self, index: usize, args: RuntimeArgs) -> Result<Option<RuntimeValue>, Trap> {
         match index {
             FUNC_EXTERNALIZE => {
-                println!("THIS IS THE FUNCTION FUN_EXTERNALIZE!");
-
                 let a: u32 = args.nth(0);
-                
-                let table = self.table.as_ref().expect(
-                    "Function 'func_externalize' expects attached table",
-                );
-
+                let table = self.table.as_ref().expect("Function 'func_externalize' expects attached table",);
                 // should check whether this function has return value or not
+                // Only need to check this in externalize function
                 let func = table.get(a).unwrap();
-                
-                // insert key:counter, value:buf into 
                 let mut func_map = self.funcmap.borrow_mut();
                 let func_counter = self.counter;
                 func_map.insert(func_counter, func);
                 self.counter = func_counter + 1;
-
-                //print 
                 let result = Some(RuntimeValue::I32(func_counter));
-                println!("result is {:?}, data_map is {:?}", result, func_map);
+
                 Ok(result)
             }
             FUNC_INTERNALIZE => {
-                println!("THIS IS THE FUNCTION FUN_INTERNALIZE!");
-                //get the parameters
-                let a: u32 = args.nth(0); // slot 
-                let b: i32 = args.nth(1); // func ref
-                
-                //load funcref into table               
-                let table = self.table.as_ref().expect(
-                    "Function 'data_externalize' expects attached memory",
-                );
-                //b should be the funcref
+                let a: u32 = args.nth(0);
+                let b: i32 = args.nth(1); 
+                let table = self.table.as_ref().expect("Function 'func_internalize' expects attached table",);
                 let func = self.funcmap.get(&b).unwrap().clone();
                 table.set(a, func);
-                println!("after internalize, the table is {:?}", table);
 
                 Ok(None)
             }
@@ -702,7 +743,9 @@ impl Externals for DfinityFunc {
         }
     }
 }
-//Step5: impl function check_signature in the struct DfinityFunc
+
+/// Implement function check_signature() in the struct DfinityFunc.
+/// This function is used to check whether a function's siganature equals to its predefined type or not.
 impl DfinityFunc {
     fn check_signature(&self, index: usize, signature: &Signature) -> bool {
 
@@ -715,7 +758,8 @@ impl DfinityFunc {
         signature.params() == params && signature.return_type() == ret_ty
     }
 }
-//Step6: impl trait ModuleImportResolver for struct DfinityFunc
+
+/// Implement trait ModuleImportResolver for struct DfinityFunc.
 impl ModuleImportResolver for DfinityFunc {
     fn resolve_func(&self, field_name: &str, signature: &Signature) -> Result<FuncRef, InterpreterError> {
         let index = match field_name {
@@ -740,13 +784,14 @@ impl ModuleImportResolver for DfinityFunc {
     }
 }
 
-// add some code
-
-//Step1: struct
+/// Struct DfinityData is used when the wast file containing import data's internalize, externalize and len functions.
+/// Field memory represents the given module's memory, which will be used in the two imported functions.
+/// Field datamap is used to store the (index, databuf) key-value relationship.
+/// Field counter is used to assign a databuf's index.
 #[derive(Clone)]
 pub struct DfinityData {
     pub memory: Option<MemoryRef>,
-        pub datamap: HashMap<i32, Vec<u8>>,
+    pub datamap: HashMap<i32, Vec<u8>>,
     pub counter: i32,
 }
 
@@ -760,7 +805,6 @@ impl fmt::Debug for DfinityData {
     }
 }
 
-//Step2: impl struct  add a new function
 impl DfinityData {
     fn new() -> DfinityData {
         DfinityData {
@@ -770,11 +814,17 @@ impl DfinityData {
         }
     }
 }
-//Step3: define func index
+
+/// Define the three imported functions' index.
 const DATA_EXTERNALIZE: usize = 0;
 const DATA_INTERNALIZE: usize = 1;
 const DATA_LENGTH: usize = 2;
-//Step4: imple Externals
+
+/// Implement struct DfinityData's trait Externals.
+/// Actually, this trait is to realize functions internalize, externalize and len.
+/// Function externalize loads a databuf(some region in the module's memory) in table into the datamap.
+/// Function internalize does the opposite thing.
+/// Function len is to get a databuf's length.
 impl Externals for DfinityData {
     fn invoke_index(
         &mut self,
@@ -784,46 +834,28 @@ impl Externals for DfinityData {
         match index {
             DATA_EXTERNALIZE => {
                 let a: u32 = args.nth(0);
-                // b must be u8 for function get_into, but for get b must be usize
                 let b: i32 = args.nth(1);
-
-                let memory = self.memory.as_ref().expect(
-                    "Function 'data_externalize' expects attached memory",
-                );
-
+                let memory = self.memory.as_ref().expect("Function 'data_externalize' expects attached memory",);
                 let buf = memory.get(a, b as usize).expect("Successfully retrieve the result");
-                
-                // insert key:counter, value:buf into 
                 let mut data_map = self.datamap.borrow_mut();
                 let data_counter = self.counter;
                 data_map.insert(data_counter, buf.to_vec());
                 self.counter = data_counter + 1;
-
                 let result = Some(RuntimeValue::I32(data_counter));
-                println!("result is {:?}, data_map is {:?}", result, data_map);
-                
 
                 Ok(result)
             }
             DATA_INTERNALIZE => {
-                let a: i32 = args.nth(0); // dst offset  10
-                let b: i32 = args.nth(1); // length  buf.length
-                let c: i32 = args.nth(2); // databuf  datareference
-                let d: i32 = args.nth(3); // src offset 0
-                //println!("a is {:?}  b is {:?}  c is {:?}  f is {:?}", a, b, c, d);
-                let memory = self.memory.as_ref().expect(
-                    "Function 'data_externalize' expects attached memory",
-                );
-                //println!("before internalize, memory is {:?}", memory);
-                
+                let a: i32 = args.nth(0);
+                let b: i32 = args.nth(1);
+                let c: i32 = args.nth(2);
+                let d: i32 = args.nth(3); 
+                let memory = self.memory.as_ref().expect("Function 'data_internalize' expects attached memory",);
                 let mut data_map = self.datamap.borrow_mut();
                 let buffer = data_map.get(&c);
-                //println!("data_internalize function buf is: {:?}", buffer);
                 let mem = MemoryInstance::alloc(Pages(1), None).unwrap();
                 mem.set(0, &buffer.unwrap()).expect("Successful initialize the memory");
-            
                 MemoryInstance::transfer(&mem, d as usize, &memory, a as usize, b as usize).unwrap();
-                //println!("after internalize, memory is {:?}", memory);            
 
                 Ok(None)
             }
@@ -831,9 +863,7 @@ impl Externals for DfinityData {
                 let a: i32 = args.nth(0);
                 let mut data_map = self.datamap.borrow_mut();
                 let buffer = data_map.get(&a);
-                //println!("key is {:?}, value is {:?}", a, buffer);
                 let length = buffer.unwrap().len();
-                //println!("length is {:?}", length);
                 let i32length: i32 = length as i32;
         
                 Ok(Some(RuntimeValue::I32(i32length)))
@@ -842,7 +872,9 @@ impl Externals for DfinityData {
         }
     }
 }
-//Step5: impl function check_signature in the struct DfinityData
+
+/// Implement function check_signature() in the struct DfinityData.
+/// This function is used to check whether a function's siganature equals to its predefined type or not.
 impl DfinityData {
     fn check_signature(&self, index: usize, signature: &Signature) -> bool {
 
@@ -856,7 +888,8 @@ impl DfinityData {
         signature.params() == params && signature.return_type() == ret_ty
     }
 }
-//Step6: impl trait ModuleImportResolver for struct DfinityData
+
+/// Implement trait ModuleImportResolver for struct DfinityData.
 impl ModuleImportResolver for DfinityData {
     fn resolve_func(&self, field_name: &str, signature: &Signature) -> Result<FuncRef, InterpreterError> {
         let index = match field_name {
@@ -882,10 +915,6 @@ impl ModuleImportResolver for DfinityData {
     }
 }
 
-lazy_static!{
-    static ref SPECDRIVER: SgxMutex<SpecDriver> = SgxMutex::new(SpecDriver::new());
-}
-
 #[no_mangle]
 pub extern "C"
 fn sgxwasm_init() -> sgx_status_t {
@@ -902,311 +931,35 @@ fn wasm_invoke(module : Option<String>, field : String, args : Vec<RuntimeValue>
     module.invoke_export(&field, &args, program.spec_module())
 }
 
-// add new function here //for Dfinity_data
-fn run_dfinity_with_export_memory(code: &mut Vec<u8>, data_buf: &Vec<u8>, wasm_func: &str, wasm_args: Vec<i32>) -> Vec<u8> {
-    //Step1: add data into this field
-    //does not change code, but rather use memory
-    //code.extend([0x0b, 0x10, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x0a, 0x48, 0x69, 0x20, 0x44, 0x46, 0x49, 0x4e, 0x49, 0x54, 0x59].iter().cloned());
-
-    // add data to this field
-    
-    //Step2: instantiate the module
+/// Execute dfinity_data.wast file.
+///
+/// Workflow is as follows:
+/// Step1: instantiate the module from buffer(bytecode) directly and form a parity module.
+/// Step2: new a mut struct DfinityFunc and DfinityData.
+/// Step3: transfer the parity module to a module in wasmi.
+/// Step4: add data field to the module's memory.
+/// Step5: before before invoking the function, get the module's exported memory and assign it to the struct's memory field.
+/// Step6: invoke the function with the given function name and its parameters.
+/// Step7: get messages if any. If message_check equals -1, this means there is no message; else the message_check represents the func index in the table.
+/// Step8: get the revised memory(also is known as data), and assign it to the return result.
+///        actually, the wast file that does not contain func struct will not produce any new message, so the messageArray is empty.
+fn run_data(code: &mut Vec<u8>, data_buf: &mut Vec<u8>, wasm_func: &str, wasm_args: Vec<i32>) -> MessageArray {
     let module = wasmi::Module::from_buffer(&code).unwrap();
-    
-    //Step2.1 change module.rs file to the original file in rust sgx sdk's wasmi
     let mut func = DfinityFunc::new();
     let mut data = DfinityData::new();
-
-    let instance = ModuleInstance::new(&module,&ImportsBuilder::new().
-                   with_resolver("data", &data),).expect("Failed to instantiate module")
-                   .assert_no_start();
-    
-    //Step1: add data into this field
+    let instance = ModuleInstance::new(&module, &ImportsBuilder::new().with_resolver("data", &data),).expect("Failed to instantiate module").assert_no_start();
     let memory = instance.memory_by_index(0).expect("this is the memory of this instance");
-    //let data_buf = data_str.as_bytes();
-    //println!("*****************data is {:?}", data_buf);
     memory.set(0, &data_buf);
-
-    //Step3.0 before invoking the function
-    //Get exported memory 
-    let internal_mem = instance
-        .export_by_name("memory")
-        .expect("Module expected to have 'mem' export")
-        .as_memory()
-        .cloned()
-        .expect("'mem' export should be a memory");
-    //println!("*************internal memory is {:?}**************", internal_mem);
+    let internal_mem = instance.export_by_name("memory").expect("Module expected to have 'memory' export").as_memory().cloned().expect("'memory' export should be a memory");
     data.memory = Some(internal_mem);
-
-    //Step3: invoke the function
-    //change wasm_args into args
-    println!("*************after invoking function init**************");
     let mut args : Vec<RuntimeValue> = Vec::new();
     for argument in wasm_args {
         let temp_arg = RuntimeValue::I32(argument);
         args.push(temp_arg);
     }
-    //Step3.1 change this line of code, invoking function with externlas DfinityData or DfinityFunc
     instance.invoke_export(wasm_func, &mut args, &mut data).expect("");
-    println!("*************after invoking function peek***************");
-    instance.invoke_export("peek", &[RuntimeValue::I32(0), RuntimeValue::I32(10)], &mut data).expect("");
     
-    //Step4: Get the memory 
-    //This changes the memory.rs and module.rs
-    let memory = instance.memory_by_index(0).unwrap().get_whole_buf().unwrap();
-    memory
-    // let memory_str = String::from_utf8(memory).unwrap();    
-    // memory_str
-}
-
-// add new function here //for Dfinity_func
-fn run_dfinity_with_export_table(code: &mut Vec<u8>, data_buf: &Vec<u8>, wasm_func: &str, wasm_args: Vec<i32>) -> Vec<u8> {
-    //Step1: add data into this field
-
-    //Step2: instantiate the module
-    let module = wasmi::Module::from_buffer(&code).unwrap();
-    
-    //Step2.1 change module.rs file to the original file in rust sgx sdk's wasmi
-    let mut func = DfinityFunc::new();
-
-    let instance = ModuleInstance::new(
-        &module,
-        &ImportsBuilder::new().with_resolver("func", &func),
-    ).expect("Failed to instantiate module")
-        .assert_no_start();
-    println!("before invoking function, instance is {:?}", instance); 
-    
-    //Step1: add data into this field
-    let memory = instance.memory_by_index(0).expect("this is the memory of this instance");
-    // let data_buf = data_str.as_bytes();
-    memory.set(0, &data_buf);
-    println!("before invoking function, memory (data) is {:?}", memory.get_whole_buf().unwrap());
-
-    //Step3.0 before invoking the function
-    // Get exported table 
-    let internal_table = instance
-        .export_by_name("table")
-        .expect("Module expected to have 'mem' export")
-        .as_table()
-        .cloned()
-        .expect("'mem' export should be a memory");
-
-    println!("table is {:?}", internal_table); 
-    func.table = Some(internal_table);
-    
-    //Step3: invoke the function
-    //change wasm_args into args
-    println!("*************after invoking function callstore**************");
-    let mut args : Vec<RuntimeValue> = Vec::new();
-    for argument in wasm_args {
-        let temp_arg = RuntimeValue::I32(argument);
-        args.push(temp_arg);
-    }
-    //Step3.1 invoking function with externlas DfinityFunc
-    instance.invoke_export(wasm_func, &mut args, &mut func).expect("");
-    println!("after invoking function, instance is {:?}", instance); 
-
-    //Step3.2 Message
     let mut messageArray = MessageArray::new();
-    //get the message_check, if it equals -1, this means there is no message; else the message_check is the func index in the table
-    let mut message_bool :i32 = -1;
-    unsafe {
-        println!("message_check is {:?}", message_check);
-        println!("args_static is {:?}", args_static);
-        message_bool = message_check;
-    }
-
-    println!("message_bool is {:?}", message_bool);
-
-    if message_bool != -1 {
-        let func_ref = func.table.unwrap()
-                .get(message_bool as u32).map_err(|_| TrapKind::TableAccessOutOfBounds);
-
-        let temptMessage = Message::new(func_ref.unwrap(), vec![]);
-
-        messageArray.push(temptMessage);
-    }
-
-    println!("message array is {:?}", messageArray);
-    
-    //Step4: Get the memory 
-    //This changes the memory.rs and module.rs
-    let memory = instance.memory_by_index(0).unwrap().get_whole_buf().unwrap();
-    memory
-    // let memory_str = String::from_utf8(memory).unwrap();    
-    // memory_str
-}
-
-// add new function here //for Dfinity_data
-// for convinence, there are no data, wasm_args and wasm_fun defined before 
-fn run_dfnity_in_lib_with_two_modules(code1: &mut Vec<u8>, code2: &mut Vec<u8>) {
-
-    //Step0: instantiate two modules
-    let module1 = wasmi::Module::from_buffer(&code1).unwrap();
-    let module2 = wasmi::Module::from_buffer(&code2).unwrap();
-    
-    //Step2: import two envs
-    let mut func1 = DfinityFunc::new();
-    let mut func2 = DfinityFunc::new();
-
-    let instance1 = ModuleInstance::new(
-        &module1,
-        &ImportsBuilder::new().with_resolver("func", &func1),
-    ).expect("Failed to instantiate module")
-        .assert_no_start();
-   println!("before invoking function, instance is {:?}", instance1); 
-    let instance2 = ModuleInstance::new(
-        &module2,
-        &ImportsBuilder::new().with_resolver("func", &func2),
-    ).expect("Failed to instantiate module")
-        .assert_no_start();
-   
-    // Step3.0 before invoking the function
-    // Get exported table 
-    let internal_table1 = instance1
-        .export_by_name("table")
-        .expect("Module expected to have 'mem' export")
-        .as_table()
-        .cloned()
-        .expect("'mem' export should be a memory");
-
-    func1.table = Some(internal_table1);
-
-    let internal_table2 = instance2
-        .export_by_name("table")
-        .expect("Module expected to have 'mem' export")
-        .as_table()
-        .cloned()
-        .expect("'mem' export should be a memory");
-
-    func2.table = Some(internal_table2);
-    
-    //Step3.1: invoke the function
-    //before invoking callref, add a func into funcmap
-    let func2_table = func2.table.as_ref().expect(
-                    "Function 'func_externalize' expects attached table",
-                );
-
-    let func_temp = func2_table.get(0).unwrap(); 
-    func1.funcmap.insert(0, func_temp);
-    println!("dfinity_func wast module has funcmap {:?}", func1.funcmap);
-    instance1.invoke_export("callref", &[RuntimeValue::I32(0)], &mut func1).expect("");
-    println!("after invoking function, instance is {:?}", instance1); 
-
-    //Step3.2 Message
-    let mut messageArray = MessageArray::new();
-    //get the message_check, if it equals -1, this means there is no message; else the message_check is the func index in the table
-    let mut message_bool :i32 = -1;
-    unsafe {
-        println!("message_check is {:?}", message_check);
-        println!("args_static is {:?}", args_static);
-        message_bool = message_check;
-
-    }
-
-    println!("message_bool is {:?}", message_bool);
-
-    if message_bool != -1 {
-        let func_ref = func1.table.unwrap()
-                .get(message_bool as u32).map_err(|_| TrapKind::TableAccessOutOfBounds);
-
-        let temptMessage = Message::new(func_ref.unwrap(), vec![]);
-
-        messageArray.push(temptMessage);
-    }
-
-    println!("message array is {:?}", messageArray);
-}
-
-// add new function here 
-// for convinence, there are no data, wasm_args and wasm_fun defined before 
-fn run_dfnity_in_lib_with_two_modules_and_params(code1: &mut Vec<u8>, data_str: &str, wasm_func: &str, wasm_args: Vec<i32>) -> String {
-
-    //Step0: instantiate two modules
-    /*
-    let mut code2: Vec<u8> = [0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x14, 0x04, 0x60, 0x01, 0x7f, 0x00, 0x60,
-                                    0x02, 0x7f, 0x7f, 0x00, 0x60, 0x02, 0x7f, 0x7f, 0x00, 0x60, 0x01, 0x7f, 0x01, 0x7f, 0x02, 0x27,
-                                    0x02, 0x04, 0x66, 0x75, 0x6e, 0x63, 0x0b, 0x69, 0x6e, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c, 0x69,
-                                    0x7a, 0x65, 0x00, 0x01, 0x04, 0x66, 0x75, 0x6e, 0x63, 0x0b, 0x65, 0x78, 0x74, 0x65, 0x72, 0x6e,
-                                    0x61, 0x6c, 0x69, 0x7a, 0x65, 0x00, 0x03, 0x03, 0x03, 0x02, 0x02, 0x02, 0x04, 0x04, 0x01, 0x70,
-                                    0x00, 0x02, 0x05, 0x03, 0x01, 0x00, 0x01, 0x06, 0x06, 0x01, 0x7f, 0x01, 0x41, 0x00, 0x0b, 0x07,
-                                    0x1e, 0x03, 0x05, 0x74, 0x61, 0x62, 0x6c, 0x65, 0x01, 0x00, 0x06, 0x6d, 0x65, 0x6d, 0x6f, 0x72,
-                                    0x79, 0x02, 0x00, 0x09, 0x63, 0x61, 0x6c, 0x6c, 0x73, 0x74, 0x6f, 0x72, 0x65, 0x00, 0x03, 0x09,
-                                    0x07, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x01, 0x02, 0x0a, 0x22, 0x02, 0x06, 0x00, 0x20, 0x00, 0x24,
-                                    0x00, 0x0b, 0x19, 0x01, 0x01, 0x7f, 0x41, 0x00, 0x10, 0x01, 0x21, 0x02, 0x41, 0x01, 0x20, 0x02,
-                                    0x10, 0x00, 0x20, 0x00, 0x20, 0x01, 0x41, 0x01, 0x11, 0x02, 0x00, 0x0b].to_vec();
-    */
-    let mut code2: Vec<u8> = [].to_vec();
-
-    let module1 = wasmi::Module::from_buffer(&code1).unwrap();
-    let module2 = wasmi::Module::from_buffer(&code2).unwrap();
-    
-    //Step2: import two envs
-    let mut func1 = DfinityFunc::new();
-    let mut func2 = DfinityFunc::new();
-
-    let instance1 = ModuleInstance::new(
-        &module1,
-        &ImportsBuilder::new().with_resolver("func", &func1),
-    ).expect("Failed to instantiate module")
-        .assert_no_start();
-
-    println!("before invoking function and loading data, instance is {:?}", instance1); 
-    
-    let instance2 = ModuleInstance::new(
-        &module2,
-        &ImportsBuilder::new().with_resolver("func", &func2),
-    ).expect("Failed to instantiate module")
-        .assert_no_start();
-
-    //Step1: add data into this field
-    let memory = MemoryInstance::alloc(Pages(1), None).unwrap();
-    let data_buf = data_str.as_bytes();
-    memory.set(0, &data_buf);
-    instance1.push_memory(memory);
-   
-    // Step3.0 before invoking the function
-    // Get exported table 
-    let internal_table1 = instance1
-        .export_by_name("table")
-        .expect("Module expected to have 'mem' export")
-        .as_table()
-        .cloned()
-        .expect("'mem' export should be a memory");
-
-    func1.table = Some(internal_table1);
-
-    let internal_table2 = instance2
-        .export_by_name("table")
-        .expect("Module expected to have 'mem' export")
-        .as_table()
-        .cloned()
-        .expect("'mem' export should be a memory");
-
-    func2.table = Some(internal_table2);
-    
-    //Step3.1: invoke the function
-    //before invoking callref, add a func into funcmap
-    let func2_table = func2.table.as_ref().expect(
-                    "Function 'func_externalize' expects attached table",
-                );
-
-    let func_temp = func2_table.get(0).unwrap(); 
-    func1.funcmap.insert(0, func_temp);
-    println!("dfinity_func wast module has funcmap {:?}", func1.funcmap);
-
-    //Step3.2: invoke the function
-    let mut args : Vec<RuntimeValue> = Vec::new();
-    for argument in wasm_args {
-        let temp_arg = RuntimeValue::I32(argument);
-        args.push(temp_arg);
-    }
-    instance1.invoke_export(wasm_func, &mut args, &mut func1).expect("");
-    println!("after invoking function, instance is {:?}", instance1); 
-
-    //Step3.3 Message
-    let mut messageArray = MessageArray::new();
-    //get the message_check, if it equals -1, this means there is no message; else the message_check is the func index in the table
     let mut message_bool :i32 = -1;
     let mut args :Vec<i32> = Vec::new();
     unsafe {
@@ -1218,165 +971,222 @@ fn run_dfnity_in_lib_with_two_modules_and_params(code1: &mut Vec<u8>, data_str: 
         message_bool = message_check;
     }
     args.reverse();
-
     if message_bool != -1 {
-        let func_ref = func1.clone().table.unwrap()
-                .get(message_bool as u32).map_err(|_| TrapKind::TableAccessOutOfBounds);
-
+        let func_ref = func.clone().table.unwrap().get(message_bool as u32).map_err(|_| TrapKind::TableAccessOutOfBounds);
         let temptMessage = Message::new(func_ref.unwrap(), args);
-
         messageArray.push(temptMessage);
     }
 
-    println!("After the 1st invoking, message array is {:?}", messageArray);
-
-
-    //******************invoke the function twice, so two messages will occur*******************
-/*    //Step3.2: invoke the function
-    instance1.invoke_export("callref", &[RuntimeValue::I32(0), RuntimeValue::I32(6), RuntimeValue::I32(4)], &mut func1).expect("");
-    println!("after invoking function, instance is {:?}", instance1); 
-
-    //Step3.3 Message
-    //get the message_check, if it equals -1, this means there is no message; else the message_check is the func index in the table
-    let mut message_bool2 :i32 = -1;
-    let mut args2 :Vec<i32> = Vec::new();
-    unsafe {
-        //println!("message_check is {:?}", message_check);
-        //println!("args_static is {:?}", args_static);
-        for tempt_str in args_static.split("+") {
-            if tempt_str != "" {
-                args2.push(tempt_str.parse::<i32>().unwrap());
-                //println!("{:?}", tempt_str);
-            }
-        }
-        message_bool2 = message_check;
-    }
-    args2.reverse();
-    //println!("*********args is {:?}", args2);
-    //println!("message_bool is {:?}", message_bool2);
-
-    if message_bool2 != -1 {
-        let func_ref = func1.clone().table.unwrap()
-                .get(message_bool2 as u32).map_err(|_| TrapKind::TableAccessOutOfBounds);
-
-        let temptMessage = Message::new(func_ref.unwrap(), args2);
-
-        messageArray.push(temptMessage);
-    }
-
-    println!("After the 2nd invoking, message array is {:?}", messageArray);
-*/
-    //Step4: Get the memory 
-    let memory_ins = instance1.memory_by_index(0).unwrap().get_whole_buf().unwrap();
-    let memory_str = String::from_utf8(memory_ins).unwrap();    
-    memory_str
+    data_buf.truncate(0);
+    let revised_memory = instance.memory_by_index(0).unwrap().get_whole_buf().unwrap();
+    data_buf.extend(revised_memory.iter().cloned());
+    messageArray
 }
 
-// add new function here
-// This function is a ECALL
-#[no_mangle]
-pub extern "C" fn dfinity_code_run() -> Vec<u8> {
+/// Execute dfinity_func.wast file.
+///
+/// Workflow is as follows:
+/// Step1: instantiate the module from buffer(bytecode) directly and form a parity module.
+/// Step2: new a mut struct DfinityFunc and DfinityData.
+/// Step3: transfer the parity module to a module in wasmi.
+/// Step4: add data field to the module's memory.
+/// Step5: before before invoking the function, get the module's exported table and assign it to the struct's table field.
+/// Step6: invoke the function with the given function name and its parameters.
+/// Step7: get messages if any. If message_check equals -1, this means there is no message; else the message_check represents the func index in the table.
+/// Step8: get the revised memory(also is known as data), and assign it to the return result.
+///        in this wast file, the module calls its own function, so no new message will be produced and the messageArray will be empty.
+fn run_func_without_msg(code: &mut Vec<u8>, data_buf: &mut Vec<u8>, wasm_func: &str, wasm_args: Vec<i32>) -> MessageArray {
+    let module = wasmi::Module::from_buffer(&code).unwrap();
+
+    let mut func = DfinityFunc::new();
+
+    let instance = ModuleInstance::new(
+        &module,
+        &ImportsBuilder::new().with_resolver("func", &func),
+    ).expect("Failed to instantiate module")
+        .assert_no_start();
     
+    let memory = instance.memory_by_index(0).expect("this is the memory of this instance");
+    memory.set(0, &data_buf);
+
+    let internal_table = instance
+        .export_by_name("table")
+        .expect("Module expected to have 'table' export")
+        .as_table()
+        .cloned()
+        .expect("'table' export should be a table"); 
+    func.table = Some(internal_table);
+    
+    let mut args : Vec<RuntimeValue> = Vec::new();
+    for argument in wasm_args {
+        let temp_arg = RuntimeValue::I32(argument);
+        args.push(temp_arg);
+    }
+    instance.invoke_export(wasm_func, &mut args, &mut func).expect("");
+
+    let mut messageArray = MessageArray::new();
+    let mut message_bool :i32 = -1;
+    let mut args :Vec<i32> = Vec::new();
+    unsafe {
+        for tempt_str in args_static.split("+") {
+            if tempt_str != "" {
+                args.push(tempt_str.parse::<i32>().unwrap());
+            }
+        }
+        message_bool = message_check;
+    }
+    args.reverse();
+    if message_bool != -1 {
+        let func_ref = func.clone().table.unwrap().get(message_bool as u32).map_err(|_| TrapKind::TableAccessOutOfBounds);
+        let temptMessage = Message::new(func_ref.unwrap(), args);
+        messageArray.push(temptMessage);
+    }
+
+    data_buf.truncate(0);
+    let revised_memory = instance.memory_by_index(0).unwrap().get_whole_buf().unwrap();
+    data_buf.extend(revised_memory.iter().cloned());
+    messageArray
+}
+
+/// Execute module1.wast file with corresponding module2.wast. (Called function does not have params.)
+/// Or execute module4.wast file with corresponding module5.wast. (Called function have params.)
+///
+/// Workflow is as follows:
+/// Step1: instantiate the module from buffer(bytecode) directly and form a parity module.
+/// Step2: new a mut struct DfinityFunc and DfinityData.
+/// Step3: transfer the parity module to a module in wasmi.
+/// Step4: add data field to the module's memory.
+/// Step5: before before invoking the function, get the module's exported table and assign it to the struct's table field.
+/// Extra step: instantiate a new module(module2.wast) which contains a function store() that will be called in module1.
+/// Step6: invoke the function with the given function name and its parameters.
+/// Step7: get messages if any. If message_check equals -1, this means there is no message; else the message_check represents the func index in the table.
+/// Step8: get the revised memory(also is known as data), and assign it to the return result.
+///             Thus, a new message will be produced in module1's messageArray.
+fn run_func_with_msg(code: &mut Vec<u8>, data_buf: &mut Vec<u8>, wasm_func: &str, wasm_args: Vec<i32>) -> MessageArray {
+    let module = wasmi::Module::from_buffer(&code).unwrap();
+    let mut func = DfinityFunc::new();
+
+    let instance = ModuleInstance::new(
+        &module,
+        &ImportsBuilder::new().with_resolver("func", &func),
+    ).expect("Failed to instantiate module")
+        .assert_no_start();
+    
+    let memory = instance.memory_by_index(0).expect("this is the memory of this instance");
+    //let data_buf = data_str.as_bytes();
+    memory.set(0, &data_buf);
+
+    let internal_table = instance
+        .export_by_name("table")
+        .expect("Module expected to have 'table' export")
+        .as_table()
+        .cloned()
+        .expect("'table' export should be a table"); 
+    func.table = Some(internal_table);
+    
+    let mut args : Vec<RuntimeValue> = Vec::new();
+    for argument in wasm_args {
+        let temp_arg = RuntimeValue::I32(argument);
+        args.push(temp_arg);
+    }
+    
+    // module2.wast
+    // let mut code2: Vec<u8> = [0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x04, 0x04, 0x01, 0x70, 0x00, 0x01, 0x06, 0x06, 0x01, 0x7f, 0x01, 0x41, 0x7f, 0x0b, 0x07, 0x09, 0x01, 0x05, 0x74, 0x61, 0x62, 0x6c, 0x65, 0x01, 0x00, 0x09, 0x07, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x01, 0x00, 0x0a, 0x08, 0x01, 0x06, 0x00, 0x41, 0x06, 0x24, 0x00, 0x0b].to_vec();
+    // module4.wast
+    let mut code2: Vec<u8> = [0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60, 0x01, 0x7f, 0x00, 0x03, 0x02, 0x01, 0x00, 0x04, 0x04, 0x01, 0x70, 0x00, 0x01, 0x06, 0x06, 0x01, 0x7f, 0x01, 0x41, 0x7f, 0x0b, 0x07, 0x09, 0x01, 0x05, 0x74, 0x61, 0x62, 0x6c, 0x65, 0x01, 0x00, 0x09, 0x07, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x01, 0x00, 0x0a, 0x0b, 0x01, 0x09, 0x00, 0x20, 0x00, 0x41, 0x01, 0x6a, 0x24, 0x00, 0x0b].to_vec();
+    let module2 = wasmi::Module::from_buffer(&code2).unwrap();
+    let mut func2 = DfinityFunc::new();
+    let instance2 = ModuleInstance::new(&module2,&ImportsBuilder::new().with_resolver("func", &func2),).expect("Failed to instantiate module").assert_no_start();
+    let internal_table2 = instance2.export_by_name("table").expect("Module expected to have 'table' export").as_table().cloned().expect("'table' export should be a table"); 
+    func2.table = Some(internal_table2);
+    let func_table2 = func2.table.as_ref().expect("Module2's table is needed to get the function store.",);
+    let func_temp = func_table2.get(0).unwrap(); 
+    func.funcmap.insert(0, func_temp);
+
+    instance.invoke_export(wasm_func, &mut args, &mut func).expect("");
+
+    let mut messageArray = MessageArray::new();
+    let mut message_bool :i32 = -1;
+    let mut args :Vec<i32> = Vec::new();
+    unsafe {
+        for tempt_str in args_static.split("+") {
+            if tempt_str != "" {
+                args.push(tempt_str.parse::<i32>().unwrap());
+            }
+        }
+        message_bool = message_check;
+    }
+    args.reverse();
+    if message_bool != -1 {
+        let func_ref = func.clone().table.unwrap().get(message_bool as u32).map_err(|_| TrapKind::TableAccessOutOfBounds);
+        let temptMessage = Message::new(func_ref.unwrap(), args);
+        messageArray.push(temptMessage);
+    }
+    println!("message array is {:?}", messageArray);
+
+    // assign data_buf new memory buf
+    //data_buf = &mut instance.memory_by_index(0).unwrap().get_whole_buf().unwrap();
+    messageArray
+}
+
+/// This function is a ECALL, which is used to test the execution of wasm outside enclave.
+#[no_mangle]
+pub extern "C" fn dfinity_code_run() -> MessageArray {
+/*   
     // Example for DfinityData
-    let data = "Hi DFINITY";
-    let data_buf = data.as_bytes().to_vec();
+    let mut data_buf = "Hi DFINITY".as_bytes().to_vec();
     
     //for DfinityData dfinity_data.wast
-    let mut wasm_binary: Vec<u8> = [0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x1c, 0x05, 0x60, 0x02, 0x7f, 0x7f, 0x01, 
-                                    0x7f, 0x60, 0x04, 0x7f, 0x7f, 0x7f, 0x7f, 0x00, 0x60, 0x01, 0x7f, 0x01, 0x7f, 0x60, 0x02, 0x7f, 
-                                    0x7f, 0x00, 0x60, 0x01, 0x7f, 0x00, 0x02, 0x35, 0x03, 0x04, 0x64, 0x61, 0x74, 0x61, 0x0b, 0x65, 
-                                    0x78, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c, 0x69, 0x7a, 0x65, 0x00, 0x00, 0x04, 0x64, 0x61, 0x74, 
-                                    0x61, 0x0b, 0x69, 0x6e, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c, 0x69, 0x7a, 0x65, 0x00, 0x01, 0x04, 
-                                    0x64, 0x61, 0x74, 0x61, 0x06, 0x6c, 0x65, 0x6e, 0x67, 0x74, 0x68, 0x00, 0x02, 0x03, 0x04, 0x03, 
-                                    0x03, 0x04, 0x03, 0x05, 0x03, 0x01, 0x00, 0x01, 0x06, 0x06, 0x01, 0x7f, 0x01, 0x41, 0x7e, 0x0b, 
-                                    0x07, 0x1e, 0x04, 0x06, 0x6d, 0x65, 0x6d, 0x6f, 0x72, 0x79, 0x02, 0x00, 0x04, 0x69, 0x6e, 0x69, 
-                                    0x74, 0x00, 0x03, 0x03, 0x73, 0x65, 0x74, 0x00, 0x04, 0x04, 0x70, 0x65, 0x65, 0x6b, 0x00, 0x05, 
-                                    0x0a, 0x2a, 0x03, 0x0a, 0x00, 0x20, 0x00, 0x20, 0x01, 0x10, 0x00, 0x24, 0x00, 0x0b, 0x06, 0x00, 
-                                    0x20, 0x00, 0x24, 0x00, 0x0b, 0x16, 0x00, 0x41, 0x0a, 0x23, 0x00, 0x10, 0x02, 0x23, 0x00, 0x41, 
-                                    0x00, 0x10, 0x01, 0x20, 0x00, 0x20, 0x01, 0x10, 0x00, 0x24, 0x00, 0x0b].to_vec();
-    let wasm_func = "init";
+    let mut wasm_binary: Vec<u8> = [0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x1c, 0x05, 0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x60, 0x04, 0x7f, 0x7f, 0x7f, 0x7f, 0x00, 0x60, 0x01, 0x7f, 0x01, 0x7f, 0x60, 0x02, 0x7f, 0x7f, 0x00, 0x60, 0x01, 0x7f, 0x00, 0x02, 0x35, 0x03, 0x04, 0x64, 0x61, 0x74, 0x61, 0x0b, 0x65, 0x78, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c, 0x69, 0x7a, 0x65, 0x00, 0x00, 0x04, 0x64, 0x61, 0x74, 0x61, 0x0b, 0x69, 0x6e, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c, 0x69, 0x7a, 0x65, 0x00, 0x01, 0x04, 0x64, 0x61, 0x74, 0x61, 0x06, 0x6c, 0x65, 0x6e, 0x67, 0x74, 0x68, 0x00, 0x02, 0x03, 0x04, 0x03, 0x03, 0x04, 0x03, 0x05, 0x03, 0x01, 0x00, 0x01, 0x06, 0x06, 0x01, 0x7f, 0x01, 0x41, 0x7e, 0x0b, 0x07, 0x1e, 0x04, 0x06, 0x6d, 0x65, 0x6d, 0x6f, 0x72, 0x79, 0x02, 0x00, 0x04, 0x69, 0x6e, 0x69, 0x74, 0x00, 0x03, 0x03, 0x73, 0x65, 0x74, 0x00, 0x04, 0x04, 0x70, 0x65, 0x65, 0x6b, 0x00, 0x05, 0x0a, 0x30, 0x03, 0x0a, 0x00, 0x20, 0x00, 0x20, 0x01, 0x10, 0x00, 0x24, 0x00, 0x0b, 0x06, 0x00, 0x20, 0x00, 0x24, 0x00, 0x0b, 0x1c, 0x00, 0x41, 0x00, 0x41, 0x0a, 0x10, 0x03, 0x41, 0x0a, 0x23, 0x00, 0x10, 0x02, 0x23, 0x00, 0x41, 0x00, 0x10, 0x01, 0x20, 0x00, 0x20, 0x01, 0x10, 0x00, 0x24, 0x00, 0x0b].to_vec();
+    let wasm_func = "peek"; //the function name can be "peek"
     let mut wasm_args: Vec<i32> = Vec::new();
     wasm_args.push(0 as i32);
     wasm_args.push(10 as i32);
 
-    let memory = run_dfinity_with_export_memory(&mut wasm_binary, &data_buf, wasm_func, wasm_args);
-    println!("after invoking function, memory (envised data) is {:?}", memory);
-    memory
+    println!("before invoking function, memory (not envised data) is {:?}", data_buf);
+    let messageArray = run_data(&mut wasm_binary, &mut data_buf, wasm_func, wasm_args);
+    println!("after invoking function, memory (envised data) is {:?}", data_buf);
+    messageArray
+*/
 
-    
-    /*
+/*
     // Example1 for DfinityFunc: this example shows call_indirect functioing correctly, which means it calls functions in its own module
     //for DfinityFunc func_ex.wast
-    let data = "Hi DFINITY FUNC";
-    let mut wasm_binary: Vec<u8> = [0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x12, 0x04, 0x60, 0x01, 0x7f, 0x00, 0x60, 
-                                    0x02, 0x7f, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x60, 0x01, 0x7f, 0x01, 0x7f, 0x02, 0x27, 0x02, 0x04, 
-                                    0x66, 0x75, 0x6e, 0x63, 0x0b, 0x69, 0x6e, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c, 0x69, 0x7a, 0x65,
-                                    0x00, 0x01, 0x04, 0x66, 0x75, 0x6e, 0x63, 0x0b, 0x65, 0x78, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c,
-                                    0x69, 0x7a, 0x65, 0x00, 0x03, 0x03, 0x03, 0x02, 0x02, 0x02, 0x04, 0x04, 0x01, 0x70, 0x00, 0x02,
-                                    0x05, 0x03, 0x01, 0x00, 0x01, 0x06, 0x06, 0x01, 0x7f, 0x01, 0x41, 0x00, 0x0b, 0x07, 0x1e, 0x03,
-                                    0x05, 0x74, 0x61, 0x62, 0x6c, 0x65, 0x01, 0x00, 0x06, 0x6d, 0x65, 0x6d, 0x6f, 0x72, 0x79, 0x02,
-                                    0x00, 0x09, 0x63, 0x61, 0x6c, 0x6c, 0x73, 0x74, 0x6f, 0x72, 0x65, 0x00, 0x03, 0x09, 0x07, 0x01,
-                                    0x00, 0x41, 0x00, 0x0b, 0x01, 0x02, 0x0a, 0x1e, 0x02, 0x06, 0x00, 0x41, 0x11, 0x24, 0x00, 0x0b,
-                                    0x15, 0x01, 0x01, 0x7f, 0x41, 0x00, 0x10, 0x01, 0x21, 0x00, 0x41, 0x01, 0x20, 0x00, 0x10, 0x00,
-                                    0x41, 0x01, 0x11, 0x02, 0x00, 0x0b].to_vec();
+    let mut data_buf = "Hi DFINITY FUNC EXAMPLE1".as_bytes().to_vec();
+    let mut wasm_binary: Vec<u8> = [0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x12, 0x04, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x02, 0x7f, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x60, 0x01, 0x7f, 0x01, 0x7f, 0x02, 0x27, 0x02, 0x04, 0x66, 0x75, 0x6e, 0x63, 0x0b, 0x69, 0x6e, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c, 0x69, 0x7a, 0x65, 0x00, 0x01, 0x04, 0x66, 0x75, 0x6e, 0x63, 0x0b, 0x65, 0x78, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c, 0x69, 0x7a, 0x65, 0x00, 0x03, 0x03, 0x03, 0x02, 0x02, 0x02, 0x04, 0x04, 0x01, 0x70, 0x00, 0x02, 0x05, 0x03, 0x01, 0x00, 0x01, 0x06, 0x06, 0x01, 0x7f, 0x01, 0x41, 0x00, 0x0b, 0x07, 0x1e, 0x03, 0x05, 0x74, 0x61, 0x62, 0x6c, 0x65, 0x01, 0x00, 0x06, 0x6d, 0x65, 0x6d, 0x6f, 0x72, 0x79, 0x02, 0x00, 0x09, 0x63, 0x61, 0x6c, 0x6c, 0x73, 0x74, 0x6f, 0x72, 0x65, 0x00, 0x03, 0x09, 0x07, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x01, 0x02, 0x0a, 0x1e, 0x02, 0x06, 0x00, 0x41, 0x11, 0x24, 0x00, 0x0b, 0x15, 0x01, 0x01, 0x7f, 0x41, 0x00, 0x10, 0x01, 0x21, 0x00, 0x41, 0x01, 0x20, 0x00, 0x10, 0x00, 0x41, 0x01, 0x11, 0x02, 0x00, 0x0b].to_vec();
     let wasm_func = "callstore";
     let mut wasm_args: Vec<i32> = Vec::new();
-    let memory = run_dfnity_in_lib_func(&mut wasm_binary, data, wasm_func, wasm_args);
-    println!("after invoking function, memory (envised data) is {:?}", memory);
-    memory
-    // For test
+
+    println!("before invoking function, memory (not envised data) is {:?}", data_buf);
+    let messageArray = run_func_without_msg(&mut wasm_binary, &mut data_buf, wasm_func, wasm_args);
+    println!("after invoking function, memory (envised data) is {:?}", data_buf);
+    messageArray
+*/
+
+/*
     // Example2 for DfinityFunc: this example shows call_indirect producing a message, which means it calls functions not in its own module
-    // for DfinityFunc dfinity_func.wast and func_ex.wast. The tested function has no params.
-    let mut wasm_binary1: Vec<u8> = [0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0d, 0x03, 0x60, 0x01, 0x7f, 0x00, 0x60, 
-                                    0x02, 0x7f, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x02, 0x14, 0x01, 0x04, 0x66, 0x75, 0x6e, 0x63, 0x0b, 
-                                    0x69, 0x6e, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c, 0x69, 0x7a, 0x65, 0x00, 0x01, 0x03, 0x02, 0x01, 
-                                    0x00, 0x04, 0x04, 0x01, 0x70, 0x00, 0x01, 0x07, 0x13, 0x02, 0x05, 0x74, 0x61, 0x62, 0x6c, 0x65, 
-                                    0x01, 0x00, 0x07, 0x63, 0x61, 0x6c, 0x6c, 0x72, 0x65, 0x66, 0x00, 0x01, 0x0a, 0x11, 0x01, 0x0f, 
-                                    0x01, 0x01, 0x7f, 0x41, 0x00, 0x20, 0x00, 0x10, 0x00, 0x41, 0x00, 0x11, 0x02, 0x00, 0x0b].to_vec();
-    
-    //for DfinityFunc func_ex.wast
-    let mut wasm_binary2: Vec<u8> = [0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x12, 0x04, 0x60, 0x01, 0x7f, 0x00, 0x60, 
-                                    0x02, 0x7f, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x60, 0x01, 0x7f, 0x01, 0x7f, 0x02, 0x27, 0x02, 0x04, 
-                                    0x66, 0x75, 0x6e, 0x63, 0x0b, 0x69, 0x6e, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c, 0x69, 0x7a, 0x65,
-                                    0x00, 0x01, 0x04, 0x66, 0x75, 0x6e, 0x63, 0x0b, 0x65, 0x78, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c,
-                                    0x69, 0x7a, 0x65, 0x00, 0x03, 0x03, 0x03, 0x02, 0x02, 0x02, 0x04, 0x04, 0x01, 0x70, 0x00, 0x02,
-                                    0x05, 0x03, 0x01, 0x00, 0x01, 0x06, 0x06, 0x01, 0x7f, 0x01, 0x41, 0x00, 0x0b, 0x07, 0x1e, 0x03,
-                                    0x05, 0x74, 0x61, 0x62, 0x6c, 0x65, 0x01, 0x00, 0x06, 0x6d, 0x65, 0x6d, 0x6f, 0x72, 0x79, 0x02,
-                                    0x00, 0x09, 0x63, 0x61, 0x6c, 0x6c, 0x73, 0x74, 0x6f, 0x72, 0x65, 0x00, 0x03, 0x09, 0x07, 0x01,
-                                    0x00, 0x41, 0x00, 0x0b, 0x01, 0x02, 0x0a, 0x1e, 0x02, 0x06, 0x00, 0x41, 0x11, 0x24, 0x00, 0x0b,
-                                    0x15, 0x01, 0x01, 0x7f, 0x41, 0x00, 0x10, 0x01, 0x21, 0x00, 0x41, 0x01, 0x20, 0x00, 0x10, 0x00,
-                                    0x41, 0x01, 0x11, 0x02, 0x00, 0x0b].to_vec();
-    
-    run_dfnity_in_lib_with_two_modules(&mut wasm_binary1, &mut wasm_binary2);
-
-    String::from("hello")
-    */
-    
-    // For test
-    // Example3 for DfinityFunc: this example shows call_indirect producing a message, which means it calls functions not in its own module
-    // for DfinityFunc dfinity_func_with_params.wast. The tested function has two params.
-    /*  
-    let mut wasm_binary1: Vec<u8> = [0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x11, 0x03, 0x60, 0x03, 0x7f, 0x7f, 0x7f,
-                                    0x00, 0x60, 0x02, 0x7f, 0x7f, 0x00, 0x60, 0x02, 0x7f, 0x7f, 0x00, 0x02, 0x14, 0x01, 0x04, 0x66,
-                                    0x75, 0x6e, 0x63, 0x0b, 0x69, 0x6e, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c, 0x69, 0x7a, 0x65, 0x00,
-                                    0x01, 0x03, 0x02, 0x01, 0x00, 0x04, 0x04, 0x01, 0x70, 0x00, 0x03, 0x07, 0x13, 0x02, 0x05, 0x74,
-                                    0x61, 0x62, 0x6c, 0x65, 0x01, 0x00, 0x07, 0x63, 0x61, 0x6c, 0x6c, 0x72, 0x65, 0x66, 0x00, 0x01,
-                                    0x09, 0x07, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x01, 0x00, 0x0a, 0x15, 0x01, 0x13, 0x01, 0x01, 0x7f,
-                                    0x41, 0x01, 0x20, 0x00, 0x10, 0x00, 0x20, 0x01, 0x20, 0x02, 0x41, 0x01, 0x11, 0x02, 0x00, 0x0b].to_vec();
-    
-    let mut wasm_binary1: Vec<u8> = [0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x11, 0x03, 0x60, 0x03, 0x7f, 0x7f, 0x7f, 0x00, 0x60, 0x02, 0x7f, 0x7f, 0x00, 0x60, 0x02, 0x7f, 0x7f, 0x00, 0x02, 0x14, 0x01, 0x04, 0x66, 0x75, 0x6e, 0x63, 0x0b, 0x69, 0x6e, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c, 0x69, 0x7a, 0x65, 0x00, 0x01, 0x03, 0x02, 0x01, 0x00, 0x04, 0x04, 0x01, 0x70, 0x00, 0x01, 0x07, 0x13, 0x02, 0x05, 0x74, 0x61, 0x62, 0x6c, 0x65, 0x01, 0x00, 0x07, 0x63, 0x61, 0x6c, 0x6c, 0x72, 0x65, 0x66, 0x00, 0x01, 0x0a, 0x15, 0x01, 0x13, 0x01, 0x01, 0x7f, 0x41, 0x00, 0x20, 0x00, 0x10, 0x00, 0x41, 0x00, 0x20, 0x01, 0x20, 0x02, 0x11, 0x02, 0x00, 0x0b].to_vec();
-    
-    // for DfinityFunc func_with_params.wast
-    // move the second wast file into the called function
-    
-    let data = "Hello, I am dfinity!";
-    let wasm_func = "callref";
+    // for module1.wast and module2.wast. The tested function has no params.
+    let mut data_buf = "Hi DFINITY FUNC EXAMPLE2".as_bytes().to_vec();
+    let mut wasm_binary: Vec<u8> = [0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x12, 0x04, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x02, 0x7f, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x60, 0x01, 0x7f, 0x01, 0x7f, 0x02, 0x27, 0x02, 0x04, 0x66, 0x75, 0x6e, 0x63, 0x0b, 0x69, 0x6e, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c, 0x69, 0x7a, 0x65, 0x00, 0x01, 0x04, 0x66, 0x75, 0x6e, 0x63, 0x0b, 0x65, 0x78, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c, 0x69, 0x7a, 0x65, 0x00, 0x03, 0x03, 0x03, 0x02, 0x02, 0x02, 0x04, 0x04, 0x01, 0x70, 0x00, 0x02, 0x05, 0x03, 0x01, 0x00, 0x01, 0x06, 0x06, 0x01, 0x7f, 0x01, 0x41, 0x00, 0x0b, 0x07, 0x1e, 0x03, 0x05, 0x74, 0x61, 0x62, 0x6c, 0x65, 0x01, 0x00, 0x06, 0x6d, 0x65, 0x6d, 0x6f, 0x72, 0x79, 0x02, 0x00, 0x09, 0x63, 0x61, 0x6c, 0x6c, 0x73, 0x74, 0x6f, 0x72, 0x65, 0x00, 0x03, 0x0a, 0x16, 0x02, 0x06, 0x00, 0x41, 0x11, 0x24, 0x00, 0x0b, 0x0d, 0x00, 0x41, 0x00, 0x41, 0x00, 0x10, 0x00, 0x41, 0x00, 0x11, 0x02, 0x00, 0x0b].to_vec();
+    let wasm_func = "callstore";
     let mut wasm_args: Vec<i32> = Vec::new();
-    wasm_args.push(0);
-    wasm_args.push(3);
-    wasm_args.push(5);
+    
+    println!("before invoking function, memory (not envised data) is {:?}", data_buf);
+    let messageArray = run_func_with_msg(&mut wasm_binary, &mut data_buf, wasm_func, wasm_args);
+    println!("after invoking function, memory (envised data) is {:?}", data_buf);
+    messageArray
+*/
 
-    let memory_str = run_dfnity_in_lib_with_two_modules_and_params(&mut wasm_binary1, data, wasm_func, wasm_args);
-    memory_str
-    */
+    // Example3 for DfinityFunc: this example shows call_indirect producing a message, which means it calls functions not in its own module
+    // for module1.wast and module2.wast. The tested function has one param.
+    let mut data_buf = "Hi DFINITY FUNC EXAMPLE3".as_bytes().to_vec();
+    let mut wasm_binary: Vec<u8> = [0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x13, 0x04, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x02, 0x7f, 0x7f, 0x00, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x01, 0x7f, 0x01, 0x7f, 0x02, 0x27, 0x02, 0x04, 0x66, 0x75, 0x6e, 0x63, 0x0b, 0x69, 0x6e, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c, 0x69, 0x7a, 0x65, 0x00, 0x01, 0x04, 0x66, 0x75, 0x6e, 0x63, 0x0b, 0x65, 0x78, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c, 0x69, 0x7a, 0x65, 0x00, 0x03, 0x03, 0x02, 0x01, 0x00, 0x04, 0x04, 0x01, 0x70, 0x00, 0x02, 0x05, 0x03, 0x01, 0x00, 0x01, 0x06, 0x06, 0x01, 0x7f, 0x01, 0x41, 0x00, 0x0b, 0x07, 0x1e, 0x03, 0x05, 0x74, 0x61, 0x62, 0x6c, 0x65, 0x01, 0x00, 0x06, 0x6d, 0x65, 0x6d, 0x6f, 0x72, 0x79, 0x02, 0x00, 0x09, 0x63, 0x61, 0x6c, 0x6c, 0x73, 0x74, 0x6f, 0x72, 0x65, 0x00, 0x02, 0x0a, 0x11, 0x01, 0x0f, 0x00, 0x41, 0x00, 0x41, 0x00, 0x10, 0x00, 0x20, 0x00, 0x41, 0x00, 0x11, 0x02, 0x00, 0x0b].to_vec();
+    let wasm_func = "callstore";
+    let mut wasm_args: Vec<i32> = Vec::new();
+    wasm_args.push(2 as i32);
+
+    println!("before invoking function, memory (not envised data) is {:?}", data_buf);
+    let messageArray = run_func_with_msg(&mut wasm_binary, &mut data_buf, wasm_func, wasm_args);
+    println!("after invoking function, memory (envised data) is {:?}", data_buf);
+    messageArray
 }
