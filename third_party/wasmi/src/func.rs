@@ -15,7 +15,7 @@ use isa;
 ///
 /// 1) Mainly add implementations of PartialEq for some objects so that we can compare two func objects.
 /// 2) Add a function called is_internal to check whether a function is 'internal' or 'host'.
-
+/// 3) Add a function get_return_type to check whether a function has return value or not.
 
 /// Reference to a function (See [`FuncInstance`] for details).
 ///
