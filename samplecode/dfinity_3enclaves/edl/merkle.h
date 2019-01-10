@@ -7,6 +7,9 @@
 #define MAX_LEN 2048
 #define MAX_HASH_LEN 10 // used for printing the hash
 #define ROOT 1	// the root idx is 1!
+// add code here
+#define MAX_PARAMS 100 // maximum number of a function's params
+#define MAX_LEN_FUNC 1000 // represent a whole function
 
 typedef unsigned int HASHTYPE;
 
@@ -41,6 +44,11 @@ typedef struct Transaction {
     HASHTYPE newhash;
     sgx_report_t report;
 } Transaction;
+
+typedef struct MessageInC {
+	char func[MAX_LEN_FUNC];
+	int params[MAX_PARAMS];
+} MsgArray;
 
 #endif /* MERKLE_H */
 

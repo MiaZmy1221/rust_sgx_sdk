@@ -8,7 +8,9 @@ enclave {
         [in, size=wasmfunc_len] char* wasmfunc_ptr, int wasmfunc_len, 
         [in, size=wasmargs_len] int* wasmargs_ptr, int wasmargs_len, 
         [out,size=2048]char* data_out, [out,size=2048]char* tx, [out]HASHTYPE* newhash_ptr, // output values 
-        [in]sgx_target_info_t* ti);
+        [in]sgx_target_info_t* ti,
+        // add a new field to output message arrary
+        [out, size=msg_size]void* msg_array, [out]int* msg_count, int msg_size);
     };
 
     untrusted {
