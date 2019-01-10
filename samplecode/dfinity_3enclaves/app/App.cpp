@@ -343,6 +343,28 @@ void print_transaction(int idx)
 }
 //////////////////////////////////////////////////////////////////////////////////////////
 
+// Messages. App need to deal with these messages.
+/////////////////////////////////////////////////////////////////////////////////////////
+
+#define MAX_MSG 100
+MsgArray msgArray[MAX_MSG];
+int msg_count = 100;
+
+void print_message_params(int idx)
+{
+    printf("message %d params are: ", idx);
+    for (int i=0; i<100; i++)
+        printf("%d ", msgArray[idx].params[i]);
+    printf("\n");
+
+    printf("message %d function is: ", idx);
+    for (int i=0; i<1000; i++)
+        printf("%c ", msgArray[idx].func[i]);
+    printf("\n");
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////
+
 int _tmain(int argc, _TCHAR* argv[])
 {
     uint32_t ret_status;
@@ -399,11 +421,22 @@ int _tmain(int argc, _TCHAR* argv[])
     sgx_report_t ret_report;
 
     Enclave1_ecall_merkle_tree_entry(e1_enclave_id, &status, codeproof, dataproof, oldhash, 
-        &ret_report, wasmfunc, 4*sizeof(char), wasmargs, 2*sizeof(int), data_out, tx_str_out, &newhash, &vali_ti);
+        &ret_report, wasmfunc, 4*sizeof(char), wasmargs, 2*sizeof(int), data_out, tx_str_out, &newhash, &vali_ti,
+        msgArray, &msg_count, sizeof(MessageInC)*(msg_count));
+
     if (status != SGX_SUCCESS) {
         print_error_message(status);
         printf("[App]merkletreeflow failed...\n");
         return -1;
+    }
+
+    //print messageArray here
+    printf("msg_count is after ecall: %d\n", msg_count);
+    for (int i =0; i<msg_count; i++){
+        printf("**********************print messages %d after ecall************************** \n", i);
+        print_message_params(i);
+        //deal with messages
+        //Enclave1_ecall_merkle_tree_entry()
     }
 
     printf("\n\n[App]data_out after ecall: %s\n", data_out);
