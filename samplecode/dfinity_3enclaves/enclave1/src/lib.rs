@@ -535,6 +535,44 @@ pub extern "C" fn ecall_get_ti() -> sgx_target_info_t {
     temp_ti
 }
 
+// Deal with Message Array and pass it to msg_array in App.cpp.
+fn assign_msg_array(msg_array: &mut [MessageInC; 100], messageArray: MessageArray) {
+    let mut index: usize =0;
+    for msg_tempt in messageArray.msgArray {
+        let tempt_func = msg_tempt.function.unwrap();
+        let tempt_params = msg_tempt.args;
+        let passed_func_str = format!("{:?}", tempt_func);
+        let passed_func = passed_func_str.as_bytes(); 
+        println!("passed_func_str is {:?}", passed_func_str);
+
+        let mut array1 = [0; 1000];
+        for index_array in 0..passed_func.len() {
+            if index_array >= 1000 {
+                println!("the message's function length should be larger than 1000");
+                break;
+            }
+            array1[index_array] = passed_func[index_array];
+        }
+
+        let mut array2 = [-1; 100];
+        for index_array in 0..tempt_params.len() {
+            if index_array >= 100 {
+                println!("the message's function parameters length should be larger than 100");
+                break;
+            }
+            array2[index_array] = tempt_params[index_array];
+        }
+
+        let tempt_msg = MessageInC{func: array1, params: array2};
+        if index >= 100 {
+            println!("messages are more than 100");
+            break;
+        }
+        msg_array[index] = tempt_msg;
+        index = index + 1;
+    }
+}
+
 /// ecall function, the main entry of the execution enclave
 #[no_mangle]
 pub extern "C" fn ecall_merkle_tree_entry(codeproof: *mut MerkleProof, dataproof: *mut MerkleProof, 
@@ -588,40 +626,7 @@ pub extern "C" fn ecall_merkle_tree_entry(codeproof: *mut MerkleProof, dataproof
     let tempt_count = messageArray.length() as i32;
     unsafe{ptr::copy_nonoverlapping(&tempt_count as *const c_int, msg_count as *mut c_int, 1)};
 
-    let mut index: usize =0;
-    for msg_tempt in messageArray.msgArray {
-        let tempt_func = msg_tempt.function.unwrap();
-        let tempt_params = msg_tempt.args;
-        let passed_func_str = format!("{:?}", tempt_func);
-        let passed_func = passed_func_str.as_bytes(); 
-        println!("passed_func_str is {:?}", passed_func_str);
-
-        let mut array1 = [0; 1000];
-        for index_array in 0..passed_func.len() {
-            if index_array >= 1000 {
-                println!("the message's function length should be larger than 1000");
-                break;
-            }
-            array1[index_array] = passed_func[index_array];
-        }
-
-        let mut array2 = [-1; 100];
-        for index_array in 0..tempt_params.len() {
-            if index_array >= 100 {
-                println!("the message's function parameters length should be larger than 100");
-                break;
-            }
-            array2[index_array] = tempt_params[index_array];
-        }
-
-        let tempt_msg = MessageInC{func: array1, params: array2};
-        if index >= 100 {
-            println!("messages are more than 100");
-            break;
-        }
-        msg_array[index] = tempt_msg;
-        index = index + 1;
-    }
+    assign_msg_array(msg_array, messageArray);
 
     // Step 6: generate new ROOT inside the enclave
     let new_data = construct_payload(&data_decrypted);
