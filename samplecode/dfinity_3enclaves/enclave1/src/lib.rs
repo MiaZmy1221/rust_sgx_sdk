@@ -74,7 +74,7 @@ use std::ffi::CString;
 use std::boxed::Box;
 use sgx_trts::memeq::ConsttimeMemEq;
 
-/// Wasmi
+/// wasmi
 #[macro_use]
 extern crate lazy_static;
 extern crate wasmi;
@@ -85,7 +85,7 @@ use wasmi::{ModuleInstance, ImportsBuilder, RuntimeValue, Error as InterpreterEr
 use wasmi::{message_check, args_static};
 use wasmi::{Message, MessageArray, TrapKind};
 
-/// Get the module, lazy_static has a mutex to lock variables when necessary.
+/// Used to get the module instance, lazy_static has a mutex to lock variables when necessary.
 lazy_static!{
     static ref SPECDRIVER: SgxMutex<SpecDriver> = SgxMutex::new(SpecDriver::new());
 }
@@ -577,16 +577,14 @@ pub extern "C" fn ecall_merkle_tree_entry(codeproof: *mut MerkleProof, dataproof
     println!("\n\nInside ecall_merkle_tree_entry(): oldhash {}, wasmfunc: {:?}, wasmargs: {:?}", 
             oldhash, wasmfunc_str, wasmargs_vec);
 
-    //pass messages to app here
+    // Step5.1: pass MessageArray and msg_count to app here
 
-    //tempt replace of real run function
-    //let messageArray = run_dfinity_with_export_memory(&mut code_decrypted, &mut data_decrypted, &wasmfunc_str, wasmargs_vec.clone());
-    // for test, let data_buf(data_decrypted) 
-    let messageArray = dfinity_code_run();
+    // real run function is the following code:
+    // let messageArray = run_dfinity_with_export_memory(&mut code_decrypted, &mut data_decrypted, &wasmfunc_str, wasmargs_vec.clone());
     // println!("\n\nInside ecall_merkle_tree_entry(): new memory is {:?}", data_decrypted);
 
-    println!("message will be passed are {:?}", messageArray);
-    println!("message number is {:?}", messageArray.length());
+    // for test, let data_buf(data_decrypted) 
+    let messageArray = dfinity_code_run();
     let tempt_count = messageArray.length() as i32;
     unsafe{ptr::copy_nonoverlapping(&tempt_count as *const c_int, msg_count as *mut c_int, 1)};
 
@@ -606,7 +604,6 @@ pub extern "C" fn ecall_merkle_tree_entry(codeproof: *mut MerkleProof, dataproof
             }
             array1[index_array] = passed_func[index_array];
         }
-        println!("array1 is {:?}", array1.to_vec());
 
         let mut array2 = [-1; 100];
         for index_array in 0..tempt_params.len() {
@@ -616,19 +613,15 @@ pub extern "C" fn ecall_merkle_tree_entry(codeproof: *mut MerkleProof, dataproof
             }
             array2[index_array] = tempt_params[index_array];
         }
-        println!("array2 is {:?}", array2.to_vec());
 
         let tempt_msg = MessageInC{func: array1, params: array2};
-        println!("tempt_msg is {:?} {:?}", tempt_msg.func.to_vec(), tempt_msg.params.to_vec());
         if index >= 100 {
             println!("messages are more than 100");
             break;
         }
         msg_array[index] = tempt_msg;
         index = index + 1;
-        println!("func and params in every message is {:?} {:?}",tempt_func, tempt_params );
     }
-    //unsafe{ptr::copy_nonoverlapping(new_data.as_ptr(), data_out, new_data.len())};
 
     // Step 6: generate new ROOT inside the enclave
     let new_data = construct_payload(&data_decrypted);
@@ -937,11 +930,11 @@ fn wasm_invoke(module : Option<String>, field : String, args : Vec<RuntimeValue>
 /// Step1: instantiate the module from buffer(bytecode) directly and form a parity module.
 /// Step2: new a mut struct DfinityFunc and DfinityData.
 /// Step3: transfer the parity module to a module in wasmi.
-/// Step4: add data field to the module's memory.
+/// Step4: add data to the module's memory.
 /// Step5: before before invoking the function, get the module's exported memory and assign it to the struct's memory field.
 /// Step6: invoke the function with the given function name and its parameters.
 /// Step7: get messages if any. If message_check equals -1, this means there is no message; else the message_check represents the func index in the table.
-/// Step8: get the revised memory(also is known as data), and assign it to the return result.
+/// Step8: get the revised memor, assign it to the parameter data_buf, then return to the MessageArray.
 ///        actually, the wast file that does not contain func struct will not produce any new message, so the messageArray is empty.
 fn run_data(code: &mut Vec<u8>, data_buf: &mut Vec<u8>, wasm_func: &str, wasm_args: Vec<i32>) -> MessageArray {
     let module = wasmi::Module::from_buffer(&code).unwrap();
@@ -993,8 +986,8 @@ fn run_data(code: &mut Vec<u8>, data_buf: &mut Vec<u8>, wasm_func: &str, wasm_ar
 /// Step5: before before invoking the function, get the module's exported table and assign it to the struct's table field.
 /// Step6: invoke the function with the given function name and its parameters.
 /// Step7: get messages if any. If message_check equals -1, this means there is no message; else the message_check represents the func index in the table.
-/// Step8: get the revised memory(also is known as data), and assign it to the return result.
-///        in this wast file, the module calls its own function, so no new message will be produced and the messageArray will be empty.
+/// Step8: get the revised memory, assign it to the parameter data_buf, then return to the MessageArray.
+///        in this wast file, the module calls its own function, so no message will be produced and the messageArray will be empty.
 fn run_func_without_msg(code: &mut Vec<u8>, data_buf: &mut Vec<u8>, wasm_func: &str, wasm_args: Vec<i32>) -> MessageArray {
     let module = wasmi::Module::from_buffer(&code).unwrap();
 
@@ -1060,8 +1053,9 @@ fn run_func_without_msg(code: &mut Vec<u8>, data_buf: &mut Vec<u8>, wasm_func: &
 /// Extra step: instantiate a new module(module2.wast) which contains a function store() that will be called in module1.
 /// Step6: invoke the function with the given function name and its parameters.
 /// Step7: get messages if any. If message_check equals -1, this means there is no message; else the message_check represents the func index in the table.
-/// Step8: get the revised memory(also is known as data), and assign it to the return result.
-///             Thus, a new message will be produced in module1's messageArray.
+/// Step8: get the revised memory, assign it to the parameter data_buf, then return to the MessageArray.
+///        In example2, module1 calls module2's function that has no parameters. Thus, a new message will be produced in module1's messageArray.
+///        In example3, module4 calls module5's function that has a parameter. Thus, a new message will be produced in module1's messageArray.
 fn run_func_with_msg(code: &mut Vec<u8>, data_buf: &mut Vec<u8>, wasm_func: &str, wasm_args: Vec<i32>) -> MessageArray {
     let module = wasmi::Module::from_buffer(&code).unwrap();
     let mut func = DfinityFunc::new();
@@ -1073,7 +1067,6 @@ fn run_func_with_msg(code: &mut Vec<u8>, data_buf: &mut Vec<u8>, wasm_func: &str
         .assert_no_start();
     
     let memory = instance.memory_by_index(0).expect("this is the memory of this instance");
-    //let data_buf = data_str.as_bytes();
     memory.set(0, &data_buf);
 
     let internal_table = instance
@@ -1122,10 +1115,10 @@ fn run_func_with_msg(code: &mut Vec<u8>, data_buf: &mut Vec<u8>, wasm_func: &str
         let temptMessage = Message::new(func_ref.unwrap(), args);
         messageArray.push(temptMessage);
     }
-    println!("message array is {:?}", messageArray);
 
-    // assign data_buf new memory buf
-    //data_buf = &mut instance.memory_by_index(0).unwrap().get_whole_buf().unwrap();
+    data_buf.truncate(0);
+    let revised_memory = instance.memory_by_index(0).unwrap().get_whole_buf().unwrap();
+    data_buf.extend(revised_memory.iter().cloned());
     messageArray
 }
 
