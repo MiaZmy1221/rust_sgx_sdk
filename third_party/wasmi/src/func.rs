@@ -153,6 +153,7 @@ impl FuncInstance {
 		}
 	}
 
+	/// Get the return value of a function. If it is none, return false; otherwise return true. 
 	pub fn get_return_type(&self) -> bool {
 		let signature = self.signature();
 		let return_type = signature.return_type();
