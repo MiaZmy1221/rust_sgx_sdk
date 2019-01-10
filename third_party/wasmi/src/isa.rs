@@ -73,10 +73,6 @@
 /// values at the moment.
 use std::prelude::v1::*;
 
-/// Changes compared to the previous file:
-///
-/// 1) Add the implementation of PartialEq for Instructions in order to compare two FuncBody objects in file func.rs.
-
 #[repr(u8)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Keep {
@@ -99,7 +95,7 @@ pub struct Target {
 	pub drop_keep: DropKeep,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Instruction {
 	/// Push a local variable or an argument from the specified depth.
 	GetLocal(u32),
@@ -306,13 +302,4 @@ pub enum Instruction {
 #[derive(Debug, Clone)]
 pub struct Instructions {
 	pub code: Vec<Instruction>,
-}
-
-/// A property for comparing two objects.
-///
-/// Adding this property is for comparing two FuncBody objects.
-impl PartialEq for Instructions {
-    fn eq(&self, other: &Instructions) -> bool {
-        self.code == other.code
-    }
 }

@@ -7,10 +7,11 @@ use std::vec::Vec;
 /// 1) This is a new added file: message.rs, which is used for representing messages between two modules/actors.
 
 /// A message contains two parts: called function and its arguments.
-#[derive(Debug)]
+/// All its fields and functions are public.
+#[derive(Debug, Clone)]
 pub struct Message {
-	function: Option<FuncRef>,
-	args: Vec<i32>,
+	pub function: Option<FuncRef>,
+	pub args: Vec<i32>,
 }
 
 impl Message {
@@ -24,7 +25,7 @@ impl Message {
 
 /// A MessageArray is the list of messages, every actor has its own MessageArray to maintain all the related messages.
 pub struct MessageArray {
-	msgArray: Vec<Message>,
+	pub msgArray: Vec<Message>,
 }
 
 
@@ -46,17 +47,17 @@ impl MessageArray {
 	}
 
 	/// Get length of the message array.
-	fn length(&self) -> usize {
+	pub fn length(&self) -> usize {
 		self.msgArray.len()
 	} 
 
 	/// Check whether the message array is empty or not.
-	fn is_empty(&self) -> bool {
+	pub fn is_empty(&self) -> bool {
 		self.msgArray.is_empty()
 	} 
 
 	/// Get a message with the given index.
-	fn get(&self, index: usize) -> &Message {
+	pub fn get(&self, index: usize) -> &Message {
 		self.msgArray.get(index).unwrap()
 	} 
 

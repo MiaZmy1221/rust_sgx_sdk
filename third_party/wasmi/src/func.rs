@@ -35,7 +35,7 @@ impl ::std::ops::Deref for FuncRef {
 /// A property for comparing two objects.
 ///
 /// Comparing the following order:
-/// FuncRef -> FuncInstance -> FuncBody and FuncSignature -> Instructions(in file isa.rs).
+/// FuncRef -> FuncInstance -> FuncBody and FuncSignature.
 impl PartialEq for FuncRef {
     fn eq(&self, other: &FuncRef) -> bool {
         let func1 = &self.0;
@@ -372,8 +372,19 @@ pub struct FuncBody {
 /// A property for comparing two objects.
 ///
 /// Compare two FuncBody.
+/// Actually, we compare a function body's instructions directly here, rather than impl PartialEq for Instructions.
+/// For that using trait PartialEq for Instructions, values inside enum Instruction will not be compared. 
+/// It may cause some errors. For example: I32Const(17) equals to I32Const(0).
 impl PartialEq for FuncBody {
     fn eq(&self, other: &FuncBody) -> bool {
-        self.locals == other.locals && self.code == self.code 
+        if self.locals != other.locals {
+        	return false;
+        }
+        for (a, b) in self.code.code.iter().zip(other.code.code.iter()) {
+        	if a != b {
+        		return false;
+        	}
+        }
+        return true;
     }
 }
