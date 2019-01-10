@@ -1,0 +1,23 @@
+enclave {
+
+    include "sys/types.h"
+    include "merkle.h"
+    trusted { 
+        public sgx_status_t ecall_merkle_tree_entry([in]MerkleProof* codeproof, [in]MerkleProof* dataproof, 
+        HASHTYPE oldhash, [out]sgx_report_t* report, 
+        [in, size=wasmfunc_len] char* wasmfunc_ptr, int wasmfunc_len, 
+        [in, size=wasmargs_len] int* wasmargs_ptr, int wasmargs_len, 
+        [out,size=2048]char* data_out, [out,size=2048]char* tx, [out]HASHTYPE* newhash_ptr, // output values 
+        [in]sgx_target_info_t* ti);
+    };
+
+    untrusted {
+        void MTBuildTreeHelper([user_check]MerkleTree* treeptr);
+        void MTWriteTreeHelper([user_check]MerkleTree* treeptr);
+        void MTPrintNodeByIndex([user_check]MerkleTree* treeptr, int idx);
+        void MTWriteNode([user_check]MerkleTree* treeptr, int idx, [in, size=2048]char* newval);
+        Node* MTReadNode([user_check]MerkleTree* treeptr, int idx);
+        void MTGetMerkleProof([user_check]MerkleTree* treeptr, int nodeidx, [out]MerkleProof* result);
+    };
+
+};

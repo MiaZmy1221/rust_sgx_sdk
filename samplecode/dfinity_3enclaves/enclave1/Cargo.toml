@@ -1,0 +1,28 @@
+[package]
+name = "enclave1"
+version = "1.0.0"
+authors = ["Baidu"]
+
+[lib]
+name = "enclave1"
+crate-type = ["staticlib"]
+
+[features]
+default = []
+dangerous_configuration = []
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_types = { path = "../../../sgx_types" }
+sgx_trts = { path = "../../../sgx_trts" }
+sgx_tstd = { path = "../../../sgx_tstd", features = ["net","backtrace"] }
+sgx_tcrypto = { path = "../../../sgx_tcrypto" }
+sgx_tse  = { path = "../../../sgx_tse"}
+sgx_rand = { path = "../../../sgx_rand"}
+
+[dependencies]
+attestation = {path = "../attestation/"}
+untrusted = "0.6.2"
+itertools = { version = "0.7.8" , default-features = false, features = []}
+wasmi = { path = "../../../third_party/wasmi" }
+sgxwasm = { path = "sgxwasm" }
+lazy_static = { version = "1.1.0", features = ["spin_no_std"] }
