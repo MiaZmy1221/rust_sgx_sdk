@@ -717,9 +717,12 @@ impl Externals for DfinityFunc {
             FUNC_EXTERNALIZE => {
                 let a: u32 = args.nth(0);
                 let table = self.table.as_ref().expect("Function 'func_externalize' expects attached table",);
-                // should check whether this function has return value or not
-                // Only need to check this in externalize function
                 let func = table.get(a).unwrap();
+                let tempt_func = func.clone().unwrap();
+                let flag = (*tempt_func).get_return_type();
+                if flag == false {
+                    println!("Error because there shoube be no return value in the function");
+                }
                 let mut func_map = self.funcmap.borrow_mut();
                 let func_counter = self.counter;
                 func_map.insert(func_counter, func);

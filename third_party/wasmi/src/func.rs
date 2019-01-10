@@ -44,6 +44,7 @@ impl PartialEq for FuncRef {
     }
 }
 
+
 /// Runtime representation of a function.
 ///
 /// Functions are the unit of organization of code in WebAssembly. Each function takes a sequence of values
@@ -150,6 +151,15 @@ impl FuncInstance {
 			FuncInstanceInternal::Internal { ref signature, .. } => signature,
 			FuncInstanceInternal::Host { ref signature, .. } => signature,
 		}
+	}
+
+	pub fn get_return_type(&self) -> bool {
+		let signature = self.signature();
+		let return_type = signature.return_type();
+		if return_type == None {
+			return false;
+		}
+		return true;
 	}
 
 	pub(crate) fn as_internal(&self) -> &FuncInstanceInternal {
