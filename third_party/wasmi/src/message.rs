@@ -2,12 +2,14 @@ use func::FuncRef;
 use core::fmt;
 use std::vec::Vec;
 
+/// This is a new added file: message.rs, which is used for representing messages between two modules/actors.
+
 /// Changes compared to the previous file:
 ///
-/// 1) This is a new added file: message.rs, which is used for representing messages between two modules/actors.
-
-/// A message contains two parts: called function and its arguments.
-/// All its fields and functions are public.
+/// 1) Implement a struct Message. A message contains two parts: called function and its arguments.
+///    All its fields and functions are public.
+/// 2) Implement a struct MessageArray, which is a list of messages. 
+///    Also implement some functions for this struct.
 #[derive(Debug, Clone)]
 pub struct Message {
 	pub function: Option<FuncRef>,

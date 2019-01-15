@@ -22,12 +22,15 @@ use isa;
 /// Changes compared to the previous file:
 ///
 /// The main change is to stop the execution when a message is produced between actors/modules.
-/// 1) Add a new InstructionOutcome "ReturnForCallIndirect" and RunResult "ReturnResultForCallIndirect".
-/// 2) Add some static variables to store info.
-/// 3) Change the function start_execution() to stop the execution when encountering a new produced message.
-/// 4) Change do_run_function() and run_instruction() to produce a message. A message will be produced only when a module/actor calls another module/actor's funtion.
-/// 5) Implement get_args() in ValueStack in order to get parameters of the called function.
-/// 6) string_to_static_str() is used to transfer a string to static str.
+/// 1) Add some static variables to store info.
+/// 2) Add a new InstructionOutcome "ReturnForCallIndirect" and RunResult "ReturnResultForCallIndirect".
+/// 3) Add clone trait for enum RunResult and impl fmt::Debug for RunResult for future use.
+/// 4) Change the function start_execution() to stop the execution when encountering a new produced message.
+/// 5) Change the function run_interpreter_loop() to set stop flag for stopping the program when encounting a message.
+/// 6) Change do_run_function() and run_call_indirect() to produce a message. A message will be produced only when a module/actor calls another module/actor's funtion.
+/// 7) Add trait clone for struct ValueStack.
+/// 8) Implement get_args() in ValueStack in order to get parameters of the called function.
+/// 9) string_to_static_str() is used to transfer a string to static str.
 
 /// Maximum number of entries in value stack.
 pub const DEFAULT_VALUE_STACK_LIMIT: usize = (1024 * 1024) / ::std::mem::size_of::<RuntimeValue>();

@@ -7,9 +7,14 @@
 #define MAX_LEN 2048
 #define MAX_HASH_LEN 10 // used for printing the hash
 #define ROOT 1	// the root idx is 1!
-// add code here
+
 #define MAX_PARAMS 100 // maximum number of a function's params
 #define MAX_LEN_FUNC 1000 // represent a whole function
+
+/// Changes compared to the previous file:
+///
+/// 1) Define some static constants.
+/// 2) Define a struct MessageInC used to tansfer message from enclave to app.
 
 typedef unsigned int HASHTYPE;
 
@@ -45,6 +50,8 @@ typedef struct Transaction {
     sgx_report_t report;
 } Transaction;
 
+/// MessageInC struct is used to store the message in the execution enclave.
+/// This struct equals to struct Message in file third_part/wasmi/src/message.rs actually.
 typedef struct MessageInC {
 	char func[MAX_LEN_FUNC];
 	int params[MAX_PARAMS];

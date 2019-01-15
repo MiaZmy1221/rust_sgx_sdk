@@ -1,7 +1,7 @@
 import re
 import os
 
-os.system('wat2wasm module5.wast -o test.wasm')
+os.system('wat2wasm moduleOne.wat -o test.wasm')
 
 with open("test.wasm", "rb") as binary_file:
     # Read the whole file at once

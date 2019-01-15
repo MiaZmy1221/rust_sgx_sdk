@@ -10,12 +10,21 @@ use value::RuntimeValue;
 use types::ValueType;
 use module::ModuleInstance;
 use isa;
+use std::cell::{Cell, RefCell};
 
 /// Changes compared to the previous file:
 ///
-/// 1) Mainly add implementations of PartialEq for some objects so that we can compare two func objects.
-/// 2) Add a function called is_internal to check whether a function is 'internal' or 'host'.
-/// 3) Add a function get_return_type to check whether a function has return value or not.
+/// 1) Add 3 fields for a FuncInstanceInternal: codeid, dataid and name. 
+///    In order to make those 3 fields mutable, we need to use Cell or RefCell.
+///    Thus, we add the 'use std::cell::{Cell, RefCell};'.
+/// 2) Add implementations of PartialEq for some objects so that we can compare two special objects.
+/// 3) Change the implementation debug trait of FuncInstance, so that we can extract needed info more easily.
+/// 4) Add a function called params_len() to get the number of a function's parameters.
+/// 5) Add a function called get_return_type() to check whether a function has return value or not.
+/// 6) Add a function called is_internal() to check whether a function is 'internal' or 'host'.
+/// 7) Add functions get_ids() and set_ids() to set a function's codeid and dataid.
+/// 8) Add functions get_name() and set_name() to set a function's name. 
+/// 9) Change functions alloc_internal() and alloc_host() to set the default codeid, dataid and name for a function.
 
 /// Reference to a function (See [`FuncInstance`] for details).
 ///
@@ -61,38 +70,56 @@ impl PartialEq for FuncRef {
 /// [`Externals`]: trait.Externals.html
 pub struct FuncInstance(FuncInstanceInternal);
 
+
+/// Add fields codeid and dataid to the func struct.
+/// When passing messages to app to be dealt with, those fields will be needed.
 #[derive(Clone)]
 pub(crate) enum FuncInstanceInternal {
 	Internal {
 		signature: Arc<Signature>,
 		module: Weak<ModuleInstance>,
 		body: Arc<FuncBody>,
+		codeid: Cell<usize>,
+		dataid: Cell<usize>,
+		name: RefCell<String>,
 	},
 	Host {
 		signature: Signature,
 		host_func_index: usize,
+		codeid: Cell<usize>,
+		dataid: Cell<usize>,
+		name: RefCell<String>,
 	},
 }
 
 impl fmt::Debug for FuncInstance {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		let params_len = self.get_params_len(); 
 		match self.as_internal() {
 			&FuncInstanceInternal::Internal {
 				ref signature,
 				ref body,
+				ref codeid,
+				ref dataid,
+				ref name,
 				..
 			} => {
 				// We can't write description of self.module here, because it generate
 				// debug string for function instances and this will lead to infinite loop.
 				write!(
 					f,
-					"Internal {{ signature={:?} body={:?} }}",
+					"{:?} | {:?} | {:?} | {:?} | {:?} | {:?}",
+					codeid,
+					dataid,
+					name,
+					params_len,
 					signature,
 					body,
+					
 				)
 			}
-			&FuncInstanceInternal::Host { ref signature, .. } => {
-				write!(f, "Host {{ signature={:?} }}", signature)
+			&FuncInstanceInternal::Host { ref signature, ref codeid, ref dataid, ref name, .. } => {
+				write!(f, "{:?} | {:?} | {:?} | {:?} | {:?}", codeid, dataid, name, params_len, signature)
 			}
 		}
 	}
@@ -134,9 +161,13 @@ impl FuncInstance {
 	///
 	/// [`Externals`]: trait.Externals.html
 	pub fn alloc_host(signature: Signature, host_func_index: usize) -> FuncRef {
+		let tempt_name = "no_name".to_string();
 		let func = FuncInstanceInternal::Host {
 			signature,
 			host_func_index,
+			codeid: Cell::new(0),
+			dataid: Cell::new(0),
+			name: RefCell::new(tempt_name),
 		};
 		FuncRef(Arc::new(FuncInstance(func)))
 	}
@@ -151,6 +182,12 @@ impl FuncInstance {
 			FuncInstanceInternal::Internal { ref signature, .. } => signature,
 			FuncInstanceInternal::Host { ref signature, .. } => signature,
 		}
+	}
+
+	/// Get the length of a function's paramters.
+	pub fn get_params_len(&self) -> usize {
+		let signature = self.signature();
+		signature.params_num()
 	}
 
 	/// Get the return value of a function. If it is none, return false; otherwise return true. 
@@ -172,10 +209,14 @@ impl FuncInstance {
 		signature: Arc<Signature>,
 		body: FuncBody,
 	) -> FuncRef {
+		let tempt_name = "no_name".to_string();
 		let func = FuncInstanceInternal::Internal {
 			signature,
 			module: module,
 			body: Arc::new(body),
+			codeid: Cell::new(0),
+			dataid: Cell::new(0),
+			name: RefCell::new(tempt_name),
 		};
 		FuncRef(Arc::new(FuncInstance(func)))
 	}
@@ -187,14 +228,42 @@ impl FuncInstance {
 		}
 	}
 
-	/// Determine whether this FuncInstance is 'internal' or 'host'.
-	/// 
-	/// This funcion is added for implementing "impl PartialEq for FuncInstance".
+	/// Determine whether this FuncInstance is 'internal' or not.
+	/// If internal, the result is true; else, it's false.
 	pub fn is_internal(&self) -> bool {
 		match *self.as_internal() {
 			FuncInstanceInternal::Internal { .. } => true,
 			FuncInstanceInternal::Host { .. } => false,
 		}
+	}
+
+	/// Get codeid and dataid for a function.
+	pub fn get_ids(&self) -> (&Cell<usize>, &Cell<usize>) {
+		match *self.as_internal() {
+			FuncInstanceInternal::Internal { ref codeid, ref dataid, .. } => (codeid, dataid),
+			FuncInstanceInternal::Host { ref codeid, ref dataid, .. } => (codeid, dataid),
+		}
+	}
+
+	/// Set codeid and dataid for a function.
+	pub fn set_ids(&self, codeid: usize, dataid: usize) {
+		let (func_codeid, func_dataid) = self.get_ids();
+		(*func_codeid).set(codeid);
+		(*func_dataid).set(dataid);
+	}
+
+	/// Get name for a function.
+	pub fn get_name(&self) -> &RefCell<String> {
+		match *self.as_internal() {
+			FuncInstanceInternal::Internal { ref name, .. } => name,
+			FuncInstanceInternal::Host { ref name, .. } => name,
+		}
+	}
+
+	/// Set name for a function
+	pub fn set_name(&self, name: String) {
+		let func_name = self.get_name();
+		func_name.replace(name);
 	}
 
 	/// Invoke this function.

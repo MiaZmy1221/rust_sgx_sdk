@@ -125,7 +125,7 @@ use std::error;
 /// Changes compared to the previous file:
 ///
 /// 1) Add declaration of new added module message and some static variables for future use.
-
+/// 2) Change function module()'s visibility from pub(crate) to pub so we can use this function to get moudle's memory section.
 
 /// Error type which can be thrown by wasm code or by host environment.
 ///
@@ -420,7 +420,7 @@ pub mod memory_units {
 /// Deserialized module prepared for instantiation.
 pub struct Module {
 	code_map: Vec<isa::Instructions>,
-	module: parity_wasm::elements::Module,
+    module: parity_wasm::elements::Module,
 }
 
 impl Module {
@@ -561,7 +561,7 @@ impl Module {
 		Module::from_parity_wasm_module(module)
 	}
 	
-	pub(crate) fn module(&self) -> &parity_wasm::elements::Module {
+	pub fn module(&self) -> &parity_wasm::elements::Module {
 		&self.module
 	}
 

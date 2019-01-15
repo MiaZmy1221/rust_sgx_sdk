@@ -74,7 +74,28 @@ use std::ffi::CString;
 use std::boxed::Box;
 use sgx_trts::memeq::ConsttimeMemEq;
 
-/// wasmi
+/// Changes to the previous file.(wasmi)
+///
+/// 1) Add some third parties or declarations for use.
+/// 2) Delete contents about lazy_static: definition of lazy_static SPECDRIVER, functions sgxwasm_init() and wasm_invoke().
+/// 3) Define MessageInC in order to pass messages from enclave to app.
+/// 4) Change function creat_tx()'s return value by adding two fields: codeid and dataid.
+/// 5) Add a function assign_msg_array() to deal with the messages, which is to transfer MessageArray(defined in file third_party/wasmi/src/message.rs) to MessageInC.
+/// 6) Change the function ecall_merkle_tree_entry() to transfer messages and related info from enclave to app.
+/// 7) Define struct DfinityFunc and implement related functions: internalize() and externalize().
+///    Clear explainations are as follow.
+/// 7.1)  One difference is that DfinityFunc needs to preload its funcmap by design. 
+///       Function preload_example1() and preload_example2() are for two examples.
+///       example1 is that simple.wat's callref() function calls sum.wat's sum2() function, so preload_example1() only loads functions in sum.wat into the funcmap.
+///       example2 is that moduleOne.wat's callref() function calls moduleTwo.wat's call_sum() function, then call_sum() function calls moduleThree's sum() function.
+///       so preload_example2() only loads functions both in moduleTwo.wat and moduleThree.wat into the funcmap.
+/// 8) Changes about DfinityData are the same as DfinityFunc.
+///    Another difference is that DfinityData has an extract function length() used to get a given databuf's length.
+/// 9) Function run_data() is to run modules with import DfinityData.
+/// 10) Function run_func() is to run modules with import DfinityFunc.
+/// 11) Function dfinity_code_run() is an ecalled used for testing running a module without merkle tree and some other info.
+
+/// Wasmi
 #[macro_use]
 extern crate lazy_static;
 extern crate wasmi;
@@ -84,11 +105,38 @@ use sgxwasm::{SpecDriver, boundary_value_to_runtime_value, result_covert};
 use wasmi::{ModuleInstance, ImportsBuilder, RuntimeValue, Error as InterpreterError, Module, NopExternals};
 use wasmi::{message_check, args_static};
 use wasmi::{Message, MessageArray, TrapKind};
+use std::fmt;
+use wasmi::{TableInstance, TableRef, FuncInstance, FuncRef, Signature, ModuleImportResolver, ValueType, Trap, RuntimeArgs, Externals};
+use std::collections::HashMap;
+use wasmi::{MemoryInstance, MemoryRef};
+use wasmi::memory_units::Pages;
+use std::borrow::BorrowMut;
 
+/// Delete lazy_static and SPECDRIVER since two fields Cell<usize> are added and they cannot be 
+/// shared between threads safely.
+
+/*
 /// Used to get the module instance, lazy_static has a mutex to lock variables when necessary.
 lazy_static!{
     static ref SPECDRIVER: SgxMutex<SpecDriver> = SgxMutex::new(SpecDriver::new());
 }
+
+#[no_mangle]
+pub extern "C"
+fn sgxwasm_init() -> sgx_status_t {
+    let mut sd = SPECDRIVER.lock().unwrap();
+    *sd = SpecDriver::new();
+    sgx_status_t::SGX_SUCCESS
+}
+
+fn wasm_invoke(module : Option<String>, field : String, args : Vec<RuntimeValue>)
+              -> Result<Option<RuntimeValue>, InterpreterError> {
+    let mut program = SPECDRIVER.lock().unwrap();
+    let module = program.module_or_last(module.as_ref().map(|x| x.as_ref()))
+                        .expect(&format!("Expected program to have loaded module {:?}", module));
+    module.invoke_export(&field, &args, program.spec_module())
+}
+*/
 
 
 fn verify_peer_enclave_trust(peer_enclave_identity: &sgx_dh_session_enclave_identity_t )-> u32 {
@@ -174,6 +222,7 @@ pub struct MerkleProof
 
 }
 
+/// Define struct MessageInC.
 #[repr(C)]
 pub struct MessageInC {
     pub func: [u8; 1000],
@@ -464,9 +513,10 @@ pub fn create_attn_data(oldhash: u32, tx: &str, newhash: u32) -> sgx_report_data
 }
 
 /// create TX string from related arguments
+/// Note: Change the return value by adding two fields: codeid and dataid.
 fn create_tx(codeproof: *mut MerkleProof, dataproof: *mut MerkleProof,
              wasmfunc_ptr: *mut u8, wasmfunc_len: c_int,
-             wasmargs_ptr: *mut i32, wasmargs_len: c_int) -> String {
+             wasmargs_ptr: *mut i32, wasmargs_len: c_int) -> (String, usize, usize) {
     // Step 1: construct wasmfunc/wasmargs
     let wasmfunc_bytes = unsafe{slice::from_raw_parts(wasmfunc_ptr, wasmfunc_len as usize)};
     let wasmfunc_str = String::from_utf8(wasmfunc_bytes.to_vec()).unwrap();
@@ -475,14 +525,14 @@ fn create_tx(codeproof: *mut MerkleProof, dataproof: *mut MerkleProof,
     let wasmargs_vec: Vec<i32> = wasmargs_bytes.to_vec();
 
     // Step 2: get node ID of code&data node
-    let codeid = MTGetLeafId(codeproof);
-    let dataid = MTGetLeafId(dataproof);
+    let codeid = MTGetLeafId(codeproof) as usize;
+    let dataid = MTGetLeafId(dataproof) as usize;
 
     // Step 3: construct Tx
     let tx = format!("TX: codeid: {}, dataid: {}, wasm_func: {}, wasmargs: {:?}", 
                     codeid, dataid, wasmfunc_str, wasmargs_vec);
     println!("[Exec] {}", tx);
-    tx
+    (tx, codeid, dataid)
 
 }
 
@@ -535,7 +585,7 @@ pub extern "C" fn ecall_get_ti() -> sgx_target_info_t {
     temp_ti
 }
 
-// Deal with Message Array and pass it to msg_array in App.cpp.
+/// Deal with Message Array and pass it to msg_array in App.cpp.
 fn assign_msg_array(msg_array: &mut [MessageInC; 100], messageArray: MessageArray) {
     let mut index: usize =0;
     for msg_tempt in messageArray.msgArray {
@@ -544,6 +594,7 @@ fn assign_msg_array(msg_array: &mut [MessageInC; 100], messageArray: MessageArra
         let passed_func_str = format!("{:?}", tempt_func);
         let passed_func = passed_func_str.as_bytes(); 
         println!("passed_func_str is {:?}", passed_func_str);
+        println!("passed_func_params_str is {:?}", tempt_params);
 
         let mut array1 = [0; 1000];
         for index_array in 0..passed_func.len() {
@@ -574,6 +625,7 @@ fn assign_msg_array(msg_array: &mut [MessageInC; 100], messageArray: MessageArra
 }
 
 /// ecall function, the main entry of the execution enclave
+/// Add some steps to transfer messages from enclave to app.
 #[no_mangle]
 pub extern "C" fn ecall_merkle_tree_entry(codeproof: *mut MerkleProof, dataproof: *mut MerkleProof, 
                                 oldhash: u32, report_out: *mut sgx_report_t, 
@@ -590,8 +642,10 @@ pub extern "C" fn ecall_merkle_tree_entry(codeproof: *mut MerkleProof, dataproof
     }
 
     // Step 2: create transaction (for step 7)
-    let tx = create_tx(codeproof, dataproof, wasmfunc_ptr, wasmfunc_len, wasmargs_ptr, wasmargs_len);
+    // and get codeid, dataid
+    let (tx, codeid, dataid) = create_tx(codeproof, dataproof, wasmfunc_ptr, wasmfunc_len, wasmargs_ptr, wasmargs_len);
     println!("Inside ecall_merkle_tree_entry(): {}", tx);
+    println!("codeid is {:?} dataid is {:?}", codeid, dataid);
 
     // Step 3: get the value of the code/data nodes (leaf node)
     let code_val = MTGetLeafValue(codeproof);
@@ -615,17 +669,11 @@ pub extern "C" fn ecall_merkle_tree_entry(codeproof: *mut MerkleProof, dataproof
     println!("\n\nInside ecall_merkle_tree_entry(): oldhash {}, wasmfunc: {:?}, wasmargs: {:?}", 
             oldhash, wasmfunc_str, wasmargs_vec);
 
-    // Step5.1: pass MessageArray and msg_count to app here
-
-    // real run function is the following code:
-    // let messageArray = run_dfinity_with_export_memory(&mut code_decrypted, &mut data_decrypted, &wasmfunc_str, wasmargs_vec.clone());
-    // println!("\n\nInside ecall_merkle_tree_entry(): new memory is {:?}", data_decrypted);
-
-    // for test, let data_buf(data_decrypted) 
-    let messageArray = dfinity_code_run();
+    // Step5.1: run the module and pass the result MessageArray to app
+    let messageArray = run_func(&mut code_decrypted, &mut data_decrypted, &wasmfunc_str, wasmargs_vec.clone(), codeid, dataid);
+    println!("\n\nInside ecall_merkle_tree_entry(): new memory is {:?}", data_decrypted);
     let tempt_count = messageArray.length() as i32;
     unsafe{ptr::copy_nonoverlapping(&tempt_count as *const c_int, msg_count as *mut c_int, 1)};
-
     assign_msg_array(msg_array, messageArray);
 
     // Step 6: generate new ROOT inside the enclave
@@ -662,19 +710,9 @@ pub extern "C" fn ecall_merkle_tree_entry(codeproof: *mut MerkleProof, dataproof
 
 }
 
-
-/// Wasmi
-/// Add some use declarations.
-use std::fmt;
-use wasmi::{TableInstance, TableRef, FuncInstance, FuncRef, Signature, ModuleImportResolver, ValueType, Trap, RuntimeArgs, Externals};
-use std::collections::HashMap;
-use wasmi::{MemoryInstance, MemoryRef};
-use wasmi::memory_units::Pages;
-use std::borrow::BorrowMut;
-
 /// Struct DfinityFunc is used when the wast file containing import func's internalize and externalize functions.
 /// Field table represents the given module's table, which will be used in the two imported functions.
-/// Field funcmap is used to store the (index, funcRef) key-value relationship.
+/// Field funcmap is used to store the (index, func's fields, signature, body, codeid and dataid) key-value relationship.
 /// Field counter is used to assign a funcRef's index.
 #[derive(Clone)]
 pub struct DfinityFunc {
@@ -685,7 +723,7 @@ pub struct DfinityFunc {
 
 impl fmt::Debug for DfinityFunc {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("DfinityData")
+        f.debug_struct("DfinityFunc")
             .field("table", &self.table)
             .field("funcmap", &self.funcmap)
             .field("counter", &self.counter)
@@ -693,11 +731,72 @@ impl fmt::Debug for DfinityFunc {
     }
 }
 
+/// We assume that all the modules/actors/agents have a shared funcmap that stores all the externalized functions.
+/// Right now, we have not implemented this dynamic increasing funcmap.
+/// Thus, we preload all the needed functions into the funcmap. 
+/// That is, prepare for the funcmap which should contains all the functions we need for calling another module.
+fn preload_example1() -> HashMap<i32, Option<FuncRef>> {
+    // code2 is sum.wat's bytecode, which contains two functions sum and sum2
+    let mut code2: Vec<u8> = [0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0d, 0x03, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x02, 0x7f, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x03, 0x03, 0x02, 0x01, 0x02, 0x06, 0x06, 0x01, 0x7f, 0x01, 0x41, 0x00, 0x0b, 0x07, 0x0e, 0x02, 0x03, 0x73, 0x75, 0x6d, 0x00, 0x00, 0x04, 0x73, 0x75, 0x6d, 0x32, 0x00, 0x01, 0x0a, 0x14, 0x02, 0x09, 0x00, 0x20, 0x00, 0x20, 0x01, 0x6a, 0x24, 0x00, 0x0b, 0x08, 0x00, 0x41, 0x02, 0x41, 0x03, 0x10, 0x00, 0x0b].to_vec();
+    let module2 = wasmi::Module::from_buffer(&code2).unwrap();
+    let instance2 = ModuleInstance::new(&module2,&ImportsBuilder::default()).expect("Failed to instantiate module").assert_no_start();
+    instance2.set_ids_for_funcs(70 as usize, 71 as usize);
+    instance2.set_func_name_for_funcs();
+    let func_tempt1 = instance2.func_by_index(0).clone().unwrap();
+    let func_tempt2 = instance2.func_by_index(1).clone().unwrap();
+    let mut default_funcmap = HashMap::new();
+    default_funcmap.insert(0 as i32, Some(func_tempt1));
+    default_funcmap.insert(1 as i32, Some(func_tempt2));
+    default_funcmap
+}
+
+/// This example works like moduleOne's function callref calls moduleTwo's call_sum function,
+/// then moduleTwo's call_sum function calls moduleThree's function sum.
+fn preload_example2() -> HashMap<i32, Option<FuncRef>> {
+    // code2 is moduleTwo's bytecode, which contains two functions: one is named call_sum, the other is func.in.
+    let mut code2: Vec<u8> = [0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x12, 0x04, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x02, 0x7f, 0x7f, 0x00, 0x60, 0x02, 0x7f, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x02, 0x14, 0x01, 0x04, 0x66, 0x75, 0x6e, 0x63, 0x0b, 0x69, 0x6e, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c, 0x69, 0x7a, 0x65, 0x00, 0x01, 0x03, 0x02, 0x01, 0x03, 0x04, 0x04, 0x01, 0x70, 0x00, 0x01, 0x07, 0x14, 0x02, 0x05, 0x74, 0x61, 0x62, 0x6c, 0x65, 0x01, 0x00, 0x08, 0x63, 0x61, 0x6c, 0x6c, 0x5f, 0x73, 0x75, 0x6d, 0x00, 0x01, 0x0a, 0x13, 0x01, 0x11, 0x00, 0x41, 0x00, 0x41, 0x02, 0x10, 0x00, 0x41, 0x01, 0x41, 0x03, 0x41, 0x00, 0x11, 0x02, 0x00, 0x0b].to_vec();
+    let module2 = wasmi::Module::from_buffer(&code2).unwrap();
+    let mut func = DfinityFunc::new_without_funcmap();
+    let instance2 = ModuleInstance::new(&module2, &ImportsBuilder::new().with_resolver("func", &func)).expect("Failed to instantiate module").assert_no_start();
+    instance2.set_ids_for_funcs(74 as usize, 75 as usize);
+    instance2.set_func_name_for_funcs();
+    let func_tempt1 = instance2.func_by_index(0).clone().unwrap();
+    let func_tempt2 = instance2.func_by_index(1).clone().unwrap();
+    let mut default_funcmap = HashMap::new();
+    default_funcmap.insert(0 as i32, Some(func_tempt1));
+    default_funcmap.insert(1 as i32, Some(func_tempt2));
+    println!("is that ok 1.2?");
+
+    // code3 is moduleThree's bytecode, which contains only one function: sum() add two constants and store the result into the $g
+    let mut code3: Vec<u8> = [0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0a, 0x02, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x02, 0x7f, 0x7f, 0x00, 0x03, 0x02, 0x01, 0x01, 0x06, 0x06, 0x01, 0x7f, 0x01, 0x41, 0x00, 0x0b, 0x07, 0x07, 0x01, 0x03, 0x73, 0x75, 0x6d, 0x00, 0x00, 0x0a, 0x0b, 0x01, 0x09, 0x00, 0x20, 0x00, 0x20, 0x01, 0x6a, 0x24, 0x00, 0x0b].to_vec();    
+    let module3 = wasmi::Module::from_buffer(&code3).unwrap();
+    
+    let instance3 = ModuleInstance::new(&module3, &ImportsBuilder::default()).expect("Failed to instantiate module").assert_no_start();
+    instance3.set_ids_for_funcs(76 as usize, 77 as usize);
+    instance3.set_func_name_for_funcs();
+    let func_tempt3 = instance3.func_by_index(0).clone().unwrap();
+    default_funcmap.insert(2 as i32, Some(func_tempt3));
+    println!("is that ok 1.3?");
+
+    default_funcmap
+}
+
+
 impl DfinityFunc {
-    fn new() -> DfinityFunc {
+    fn new_without_funcmap() -> DfinityFunc {
         DfinityFunc {
             table: Some(TableInstance::alloc(1, None).unwrap()),
             funcmap: HashMap::new(),
+            counter: 0,
+        }
+    }
+    fn new() -> DfinityFunc {
+        // let mut default_funcmap = preload_example1();
+        println!("is that ok 1.1?");
+        let mut default_funcmap = preload_example2();
+        DfinityFunc {
+            table: Some(TableInstance::alloc(1, None).unwrap()),
+            funcmap: default_funcmap,
             counter: 0,
         }
     }
@@ -916,22 +1015,6 @@ impl ModuleImportResolver for DfinityData {
     }
 }
 
-#[no_mangle]
-pub extern "C"
-fn sgxwasm_init() -> sgx_status_t {
-    let mut sd = SPECDRIVER.lock().unwrap();
-    *sd = SpecDriver::new();
-    sgx_status_t::SGX_SUCCESS
-}
-
-fn wasm_invoke(module : Option<String>, field : String, args : Vec<RuntimeValue>)
-              -> Result<Option<RuntimeValue>, InterpreterError> {
-    let mut program = SPECDRIVER.lock().unwrap();
-    let module = program.module_or_last(module.as_ref().map(|x| x.as_ref()))
-                        .expect(&format!("Expected program to have loaded module {:?}", module));
-    module.invoke_export(&field, &args, program.spec_module())
-}
-
 /// Execute dfinity_data.wast file.
 ///
 /// Workflow is as follows:
@@ -984,99 +1067,38 @@ fn run_data(code: &mut Vec<u8>, data_buf: &mut Vec<u8>, wasm_func: &str, wasm_ar
     messageArray
 }
 
-/// Execute dfinity_func.wast file.
-///
-/// Workflow is as follows:
-/// Step1: instantiate the module from buffer(bytecode) directly and form a parity module.
-/// Step2: new a mut struct DfinityFunc and DfinityData.
-/// Step3: transfer the parity module to a module in wasmi.
-/// Step4: add data field to the module's memory.
-/// Step5: before before invoking the function, get the module's exported table and assign it to the struct's table field.
-/// Step6: invoke the function with the given function name and its parameters.
-/// Step7: get messages if any. If message_check equals -1, this means there is no message; else the message_check represents the func index in the table.
-/// Step8: get the revised memory, assign it to the parameter data_buf, then return to the MessageArray.
-///        in this wast file, the module calls its own function, so no message will be produced and the messageArray will be empty.
-fn run_func_without_msg(code: &mut Vec<u8>, data_buf: &mut Vec<u8>, wasm_func: &str, wasm_args: Vec<i32>) -> MessageArray {
-    let module = wasmi::Module::from_buffer(&code).unwrap();
-
-    let mut func = DfinityFunc::new();
-
-    let instance = ModuleInstance::new(
-        &module,
-        &ImportsBuilder::new().with_resolver("func", &func),
-    ).expect("Failed to instantiate module")
-        .assert_no_start();
-    
-    let memory = instance.memory_by_index(0).expect("this is the memory of this instance");
-    memory.set(0, &data_buf);
-
-    let internal_table = instance
-        .export_by_name("table")
-        .expect("Module expected to have 'table' export")
-        .as_table()
-        .cloned()
-        .expect("'table' export should be a table"); 
-    func.table = Some(internal_table);
-    
-    let mut args : Vec<RuntimeValue> = Vec::new();
-    for argument in wasm_args {
-        let temp_arg = RuntimeValue::I32(argument);
-        args.push(temp_arg);
-    }
-    instance.invoke_export(wasm_func, &mut args, &mut func).expect("");
-
-    let mut messageArray = MessageArray::new();
-    let mut message_bool :i32 = -1;
-    let mut args :Vec<i32> = Vec::new();
-    unsafe {
-        for tempt_str in args_static.split("+") {
-            if tempt_str != "" {
-                args.push(tempt_str.parse::<i32>().unwrap());
-            }
-        }
-        message_bool = message_check;
-    }
-    args.reverse();
-    if message_bool != -1 {
-        let func_ref = func.clone().table.unwrap().get(message_bool as u32).map_err(|_| TrapKind::TableAccessOutOfBounds);
-        let temptMessage = Message::new(func_ref.unwrap(), args);
-        messageArray.push(temptMessage);
-    }
-
-    data_buf.truncate(0);
-    let revised_memory = instance.memory_by_index(0).unwrap().get_whole_buf().unwrap();
-    data_buf.extend(revised_memory.iter().cloned());
-    messageArray
-}
-
 /// Execute module1.wast file with corresponding module2.wast. (Called function does not have params.)
 /// Or execute module4.wast file with corresponding module5.wast. (Called function have params.)
 ///
 /// Workflow is as follows:
 /// Step1: instantiate the module from buffer(bytecode) directly and form a parity module.
-/// Step2: new a mut struct DfinityFunc and DfinityData.
+/// Step2: new a mut struct DfinityFunc.
 /// Step3: transfer the parity module to a module in wasmi.
-/// Step4: add data field to the module's memory.
-/// Step5: before before invoking the function, get the module's exported table and assign it to the struct's table field.
-/// Extra step: instantiate a new module(module2.wast) which contains a function store() that will be called in module1.
-/// Step6: invoke the function with the given function name and its parameters.
-/// Step7: get messages if any. If message_check equals -1, this means there is no message; else the message_check represents the func index in the table.
-/// Step8: get the revised memory, assign it to the parameter data_buf, then return to the MessageArray.
-///        In example2, module1 calls module2's function that has no parameters. Thus, a new message will be produced in module1's messageArray.
-///        In example3, module4 calls module5's function that has a parameter. Thus, a new message will be produced in module1's messageArray.
-fn run_func_with_msg(code: &mut Vec<u8>, data_buf: &mut Vec<u8>, wasm_func: &str, wasm_args: Vec<i32>) -> MessageArray {
+/// Step4: If this module does not contain a memory, add one. Then add data field to the module's memory.
+/// Step5: Add codeid, dataid and name for every function in the module. 
+/// Step6: Check whether the module contains a table export in the exports section and if not, add one.
+///        Then before before invoking the function, get the module's exported table and assign it to the struct's table field.
+/// Step7: invoke the function with the given function name and its parameters.
+/// Step8: get messages if any. If message_check equals -1, this means there is no message; else the message_check represents the func index in the table.
+/// Step9: get the revised memory, assign it to the parameter data_buf, then return to the MessageArray.
+
+fn run_func(code: &mut Vec<u8>, data_buf: &mut Vec<u8>, wasm_func: &str, wasm_args: Vec<i32>, codeid: usize, dataid: usize) -> MessageArray {
     let module = wasmi::Module::from_buffer(&code).unwrap();
     let mut func = DfinityFunc::new();
 
-    let instance = ModuleInstance::new(
-        &module,
-        &ImportsBuilder::new().with_resolver("func", &func),
-    ).expect("Failed to instantiate module")
-        .assert_no_start();
+    let instance = ModuleInstance::new(&module, &ImportsBuilder::new().with_resolver("func", &func),).expect("Failed to instantiate module").assert_no_start();
     
+    if (module.module().memory_section() == None){
+        let new_memory = MemoryInstance::alloc(Pages(1), None).expect("Due to validation `initial` and `maximum` should be valid");
+        instance.push_memory(new_memory);
+    }
     let memory = instance.memory_by_index(0).expect("this is the memory of this instance");
     memory.set(0, &data_buf);
 
+    instance.set_ids_for_funcs(codeid, dataid);
+    instance.set_func_name_for_funcs();
+
+    instance.exports_has_table();
     let internal_table = instance
         .export_by_name("table")
         .expect("Module expected to have 'table' export")
@@ -1090,21 +1112,8 @@ fn run_func_with_msg(code: &mut Vec<u8>, data_buf: &mut Vec<u8>, wasm_func: &str
         let temp_arg = RuntimeValue::I32(argument);
         args.push(temp_arg);
     }
-    
-    // module2.wast
-    // let mut code2: Vec<u8> = [0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x04, 0x04, 0x01, 0x70, 0x00, 0x01, 0x06, 0x06, 0x01, 0x7f, 0x01, 0x41, 0x7f, 0x0b, 0x07, 0x09, 0x01, 0x05, 0x74, 0x61, 0x62, 0x6c, 0x65, 0x01, 0x00, 0x09, 0x07, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x01, 0x00, 0x0a, 0x08, 0x01, 0x06, 0x00, 0x41, 0x06, 0x24, 0x00, 0x0b].to_vec();
-    // module4.wast
-    let mut code2: Vec<u8> = [0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60, 0x01, 0x7f, 0x00, 0x03, 0x02, 0x01, 0x00, 0x04, 0x04, 0x01, 0x70, 0x00, 0x01, 0x06, 0x06, 0x01, 0x7f, 0x01, 0x41, 0x7f, 0x0b, 0x07, 0x09, 0x01, 0x05, 0x74, 0x61, 0x62, 0x6c, 0x65, 0x01, 0x00, 0x09, 0x07, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x01, 0x00, 0x0a, 0x0b, 0x01, 0x09, 0x00, 0x20, 0x00, 0x41, 0x01, 0x6a, 0x24, 0x00, 0x0b].to_vec();
-    let module2 = wasmi::Module::from_buffer(&code2).unwrap();
-    let mut func2 = DfinityFunc::new();
-    let instance2 = ModuleInstance::new(&module2,&ImportsBuilder::new().with_resolver("func", &func2),).expect("Failed to instantiate module").assert_no_start();
-    let internal_table2 = instance2.export_by_name("table").expect("Module expected to have 'table' export").as_table().cloned().expect("'table' export should be a table"); 
-    func2.table = Some(internal_table2);
-    let func_table2 = func2.table.as_ref().expect("Module2's table is needed to get the function store.",);
-    let func_temp = func_table2.get(0).unwrap(); 
-    func.funcmap.insert(0, func_temp);
-
     instance.invoke_export(wasm_func, &mut args, &mut func).expect("");
+    println!("After invoking the function, instance is {:?}", instance);
 
     let mut messageArray = MessageArray::new();
     let mut message_bool :i32 = -1;
@@ -1130,9 +1139,10 @@ fn run_func_with_msg(code: &mut Vec<u8>, data_buf: &mut Vec<u8>, wasm_func: &str
     messageArray
 }
 
+
 /// This function is a ECALL, which is used to test the execution of wasm outside enclave.
 #[no_mangle]
-pub extern "C" fn dfinity_code_run() -> MessageArray {
+pub extern "C" fn dfinity_code_run(codeid: usize, dataid: usize) -> MessageArray {
 /*   
     // Example for DfinityData
     let mut data_buf = "Hi DFINITY".as_bytes().to_vec();
@@ -1149,8 +1159,6 @@ pub extern "C" fn dfinity_code_run() -> MessageArray {
     println!("after invoking function, memory (envised data) is {:?}", data_buf);
     messageArray
 */
-
-/*
     // Example1 for DfinityFunc: this example shows call_indirect functioing correctly, which means it calls functions in its own module
     //for DfinityFunc func_ex.wast
     let mut data_buf = "Hi DFINITY FUNC EXAMPLE1".as_bytes().to_vec();
@@ -1159,10 +1167,10 @@ pub extern "C" fn dfinity_code_run() -> MessageArray {
     let mut wasm_args: Vec<i32> = Vec::new();
 
     println!("before invoking function, memory (not envised data) is {:?}", data_buf);
-    let messageArray = run_func_without_msg(&mut wasm_binary, &mut data_buf, wasm_func, wasm_args);
+    let messageArray = run_func(&mut wasm_binary, &mut data_buf, wasm_func, wasm_args, codeid, dataid);
     println!("after invoking function, memory (envised data) is {:?}", data_buf);
     messageArray
-*/
+
 
 /*
     // Example2 for DfinityFunc: this example shows call_indirect producing a message, which means it calls functions not in its own module
@@ -1178,16 +1186,36 @@ pub extern "C" fn dfinity_code_run() -> MessageArray {
     messageArray
 */
 
+/*
     // Example3 for DfinityFunc: this example shows call_indirect producing a message, which means it calls functions not in its own module
-    // for module1.wast and module2.wast. The tested function has one param.
-    let mut data_buf = "Hi DFINITY FUNC EXAMPLE3".as_bytes().to_vec();
-    let mut wasm_binary: Vec<u8> = [0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x13, 0x04, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x02, 0x7f, 0x7f, 0x00, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x01, 0x7f, 0x01, 0x7f, 0x02, 0x27, 0x02, 0x04, 0x66, 0x75, 0x6e, 0x63, 0x0b, 0x69, 0x6e, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c, 0x69, 0x7a, 0x65, 0x00, 0x01, 0x04, 0x66, 0x75, 0x6e, 0x63, 0x0b, 0x65, 0x78, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c, 0x69, 0x7a, 0x65, 0x00, 0x03, 0x03, 0x02, 0x01, 0x00, 0x04, 0x04, 0x01, 0x70, 0x00, 0x02, 0x05, 0x03, 0x01, 0x00, 0x01, 0x06, 0x06, 0x01, 0x7f, 0x01, 0x41, 0x00, 0x0b, 0x07, 0x1e, 0x03, 0x05, 0x74, 0x61, 0x62, 0x6c, 0x65, 0x01, 0x00, 0x06, 0x6d, 0x65, 0x6d, 0x6f, 0x72, 0x79, 0x02, 0x00, 0x09, 0x63, 0x61, 0x6c, 0x6c, 0x73, 0x74, 0x6f, 0x72, 0x65, 0x00, 0x02, 0x0a, 0x11, 0x01, 0x0f, 0x00, 0x41, 0x00, 0x41, 0x00, 0x10, 0x00, 0x20, 0x00, 0x41, 0x00, 0x11, 0x02, 0x00, 0x0b].to_vec();
-    let wasm_func = "callstore";
+    // for simplecall.wat and sum.wat. 
+    let mut data_buf = "Hi I AM DFINITY FUNC EXAMPLE3 SIMPLECALL'S DATA".as_bytes().to_vec();
+    let mut wasm_binary: Vec<u8> = [0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0d, 0x03, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x02, 0x7f, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x02, 0x14, 0x01, 0x04, 0x66, 0x75, 0x6e, 0x63, 0x0b, 0x69, 0x6e, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c, 0x69, 0x7a, 0x65, 0x00, 0x01, 0x03, 0x02, 0x01, 0x00, 0x04, 0x04, 0x01, 0x70, 0x00, 0x01, 0x07, 0x13, 0x02, 0x05, 0x74, 0x61, 0x62, 0x6c, 0x65, 0x01, 0x00, 0x07, 0x63, 0x61, 0x6c, 0x6c, 0x72, 0x65, 0x66, 0x00, 0x01, 0x0a, 0x11, 0x01, 0x0f, 0x01, 0x01, 0x7f, 0x41, 0x00, 0x20, 0x00, 0x10, 0x00, 0x41, 0x00, 0x11, 0x02, 0x00, 0x0b].to_vec();
+    
+    let mut module1_binary = construct_payload(&wasm_binary);
+    println!("module1's code needed to be stored in the databse is {:?}", module1_binary);
+    println!("module1's code needed to be stored in the databse is {:?}", deconstruct_payload(&module1_binary));
+    let mut module1_data = construct_payload(&data_buf);
+    println!("module1's data needed to be stored in the databse is {:?}", module1_data);
+    println!("module1's data needed to be stored in the databse is {:?}", str::from_utf8(&deconstruct_payload(&module1_data)).unwrap());
+    let mut code2: Vec<u8> = [0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0d, 0x03, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x02, 0x7f, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x03, 0x03, 0x02, 0x01, 0x02, 0x06, 0x06, 0x01, 0x7f, 0x01, 0x41, 0x00, 0x0b, 0x07, 0x0e, 0x02, 0x03, 0x73, 0x75, 0x6d, 0x00, 0x00, 0x04, 0x73, 0x75, 0x6d, 0x32, 0x00, 0x01, 0x0a, 0x14, 0x02, 0x09, 0x00, 0x20, 0x00, 0x20, 0x01, 0x6a, 0x24, 0x00, 0x0b, 0x08, 0x00, 0x41, 0x02, 0x41, 0x03, 0x10, 0x00, 0x0b].to_vec();
+    let mut data_buf2 = "Hi I AM DFINITY FUNC EXAMPLE3 SUM'S DATA".as_bytes().to_vec();
+    let mut module2_binary = construct_payload(&code2);
+    println!("module2's code needed to be stored in the databse is {:?}", module2_binary);
+    println!("module2's code needed to be stored in the databse is {:?}", deconstruct_payload(&module2_binary));
+    let mut module2_data = construct_payload(&data_buf2);
+    println!("module2's data needed to be stored in the databse is {:?}", module2_data);
+    println!("module2's data needed to be stored in the databse is {:?}", str::from_utf8(&deconstruct_payload(&module2_data)).unwrap());
+
+    // what if a function has two exported name
+    let wasm_func = "callref";
     let mut wasm_args: Vec<i32> = Vec::new();
-    wasm_args.push(2 as i32);
+    // 0 is the index of sum and 1 is the index of sum2.
+    wasm_args.push(1 as i32);
 
     println!("before invoking function, memory (not envised data) is {:?}", data_buf);
-    let messageArray = run_func_with_msg(&mut wasm_binary, &mut data_buf, wasm_func, wasm_args);
+    let messageArray = run_func_with_msg(&mut wasm_binary, &mut data_buf, wasm_func, wasm_args, codeid, dataid);
     println!("after invoking function, memory (envised data) is {:?}", data_buf);
     messageArray
+*/
 }

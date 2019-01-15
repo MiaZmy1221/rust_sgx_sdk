@@ -3,7 +3,7 @@ use runner::check_function_args;
 use Trap;
 //use std::rc::Rc;
 use std::sync::Arc;
-use std::cell::RefCell;
+use std::cell::{RefCell, RefMut};
 use std::fmt;
 use std::collections::HashMap;
 use parity_wasm::elements::{External, InitExpr, Internal, Instruction, ResizableLimits, Type};
@@ -20,8 +20,19 @@ use memory_units::Pages;
 
 /// Changes compared to the previous file:
 ///
-/// 1) Add a new function: has_func() is used to check whether a module contains the given function.
-/// 2) Change push_memory() access control from pub(crate) to pub so that modules outside the crate can call this function.
+/// 1) Add "use std::cell::RefMut;" for future use.
+/// 2) Add trait "impl PartialEq for ExternVal" to compare ExternVal(Func) objects.
+/// 3) Add two functions is_func() and is_table() to check whether a ExternVal is func or table respectively.
+/// 4) Change function memory_by_index()'s visibility from pub(crate) to pub.
+/// 5) Add a function named has_func() to check whether a module contains the given function.
+/// 6) Add a function named exports_has_table() to check whether a module's exports section contains a table and if not, insert one into the exports.
+///    That is used to make sure the module must contain a table export.  
+/// 7) Change function func_by_index()'s visibility from pub(crate) to pub.
+/// 8) Change function push_memory()'s visibility from pub(crate) to pub.
+/// 9) Add a function set_ids_for_funcs() to set codeid and dataid for every function in the module.
+/// 10) Add function set_func_name_for_funcs() to set name for every function in the module. 
+///     Function check_key_in_exports() is added to help set name for functions.
+///     If a name that will be assigned as a function's one has already been in the exports, it means a new name will be construct as the function's name.
 
 /// Reference to a [`ModuleInstance`].
 ///
@@ -95,6 +106,22 @@ impl fmt::Debug for ExternVal {
 	}
 }
 
+/// A property for comparing two objects.
+impl PartialEq for ExternVal {
+    fn eq(&self, other: &ExternVal) -> bool {
+    	if(self.is_func()&&other.is_func()){
+    		let func1 = self.as_func();
+	        let func2 = other.as_func();
+	        if func1 == func2 {
+	        	return true;
+	        }
+	        return false;
+    	}
+        println!("Error since the externval is not func, so they cannot be compared.");
+        return false;
+    }
+}
+
 impl ExternVal {
 	/// Get underlying function reference if this `ExternVal` contains
 	/// a function, or `None` if it is some other kind.
@@ -111,6 +138,22 @@ impl ExternVal {
 		match *self {
 			ExternVal::Table(ref table) => Some(table),
 			_ => None,
+		}
+	}
+
+	/// Check whether the ExternVal is a func or not. 
+	pub fn is_func(&self) -> bool {
+		match *self {
+			ExternVal::Func(ref func) => true,
+			_ => false,
+		}
+	}
+
+	/// Check whether the ExternVal is a table or not. 
+	pub fn is_table(&self) -> bool {
+		match *self {
+			ExternVal::Table(ref table) => true,
+			_ => false,
 		}
 	}
 
@@ -199,11 +242,29 @@ impl ModuleInstance {
 		self.tables.borrow_mut().get(idx as usize).cloned()
 	}
 
+	// Check whether exports section contains a table. If not, create one; if so, just ignore. 
+	pub fn exports_has_table(&self) {
+		let mut tempt_exports = self.exports.borrow_mut();
+		for (key, val) in tempt_exports.iter() {
+			if (*val).is_table() {
+				return;
+			}
+		}
+
+		let table = TableInstance::alloc(1,None).unwrap();
+		self.push_table(table);
+		let tempt_table = self.table_by_index(0).expect("Due to validation table should exists",);
+		let tempt_externval = ExternVal::Table(tempt_table);
+		tempt_exports.insert("table".to_string(), tempt_externval);
+	}
+
 	pub(crate) fn global_by_index(&self, idx: u32) -> Option<GlobalRef> {
 		self.globals.borrow_mut().get(idx as usize).cloned()
 	}
 
-	pub(crate) fn func_by_index(&self, idx: u32) -> Option<FuncRef> {
+
+	/// change the pub(crate) to pub
+	pub fn func_by_index(&self, idx: u32) -> Option<FuncRef> {
 		self.funcs.borrow().get(idx as usize).cloned()
 	}
 
@@ -222,6 +283,62 @@ impl ModuleInstance {
 	/// Change this function from pub(crate) to pub so that other modules can call this function.
 	pub fn push_memory(&self, memory: MemoryRef) {
 		self.memories.borrow_mut().push(memory)
+	}
+
+	/// Set ids for every function in the given module.
+	pub fn set_ids_for_funcs(&self, codeid: usize, dataid: usize) {
+		let funcs = self.funcs.borrow();
+		for func in funcs.to_vec() {
+			func.set_ids(codeid, dataid);
+		}
+	}
+
+	/// Check whether a defined function name has already been in the export section.
+	/// If so, return true; else, return false.
+	pub fn check_key_in_exports(&self, check_key: &str, exports: &mut RefMut<HashMap<String, ExternVal>>) -> bool {
+		for (key, val) in exports.iter() {
+			if check_key == key {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/// Set name for every function in order to be invoked via function instance.invoke_export. 
+	/// If a function has already beein in export section, it must have more than one name and then anyone of them can be assigned to the name;
+	/// if not, name one function and put it into the name field in func. 
+	/// new name func start from func1 and make sure func1 has not already in the export section.
+	pub fn set_func_name_for_funcs(&self) {
+		let funcs = self.funcs.borrow();
+		let mut tempt_exports = self.exports.borrow_mut();
+		let mut index = 1;
+		for func in funcs.to_vec() {
+			println!("*******before naming, every func is {:?}", func);
+			let mut flag = false;
+			for (key, val) in tempt_exports.iter() {
+			    if *val == ExternVal::Func(func.clone()) {
+			    	func.set_name(key.to_string());
+			    	flag = true;
+			    	break;
+			    }
+			}
+			let mut tempt_name = format!("func");
+			if flag == false {
+				tempt_name = format!("func{:?}", index);
+				// Check whether the tempt_name is being used by the export section.
+				let mut flag_in_exports = false;
+				flag_in_exports = self.check_key_in_exports(&tempt_name, &mut tempt_exports);
+				while (flag_in_exports) {
+					index = index + 1;
+					tempt_name = format!("func{:?}", index);
+					flag_in_exports = self.check_key_in_exports(&tempt_name, &mut tempt_exports);
+				}
+				func.set_name(tempt_name.to_string());
+				tempt_exports.insert(tempt_name.clone(), ExternVal::Func(func.clone())); 
+				index = index + 1;
+			}
+			println!("*******after naming, every func is {:?}", func);
+		}
 	}
 
 	fn push_table(&self, table: TableRef) {

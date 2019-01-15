@@ -13,9 +13,9 @@ use value::LittleEndianConvert;
 
 /// Changes compared to the previous file:
 ///
-/// 1) Add two functions: get_whole_buf() is used to get the whole buffer of the given memory.
-///						  transfer() is similar as copy().
-
+/// 1) Add a field buffer in implementation of display trait. 
+/// 2) Add a function called get_whole_buf() to get the whole buffer of the given memory.
+///	3) Add a funciton named transfer() which is similar as copy(). Transfer a memory's contents to another.
 
 /// Size of a page of [linear memory][`MemoryInstance`] - 64KiB.
 ///
