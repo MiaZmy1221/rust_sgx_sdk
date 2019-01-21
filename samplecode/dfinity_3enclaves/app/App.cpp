@@ -366,85 +366,31 @@ int msg_count = 100;
 
 void print_message_params(int idx, MsgArray array[MAX_MSG])
 {
+    printf("message %d function is: ", idx);
+    for (int i=0; i<100; i++)
+        printf("%c", array[idx].func[i]);
+    printf("\n");
+
     printf("message %d params are: ", idx);
     for (int i=0; i<100; i++)
         printf("%d ", array[idx].params[i]);
     printf("\n");
 
-    printf("message %d function is: ", idx);
-    for (int i=0; i<1000; i++)
-        printf("%c", array[idx].func[i]);
+    for (int i=0; i<4; i++)
+        printf("%d ", array[idx].others[i]);
     printf("\n");
 }
 
-void deal_with_message(int idx, int* codeid, int* dataid, char* funcname, int* func_len, int* args, int* args_len) {
-    //get the codeid, dataid, name, name_legth, and args length of a function
-    char delim[] = {"|"};
-    int i = 0;
-    char *p = strtok(allMsgArray[idx].func, delim);
-    char *array[4]; // codeid dataid name and params_length
-
-    while (p != NULL && i < 4)
-    {
-        array[i] = p;
-        i = i + 1;
-        p = strtok (NULL, delim);
-    }
-
-    for (i = 0; i < 3; ++i){
-        printf("%s\n", array[i]);
-        char delim1[] = {':', '}'};
-        int j = 0;
-        char *p1 = strtok(array[i], delim1);
-        char *array1[3]; // might be 3 
-        while (p1 != NULL && j < 3)
-        {
-            array1[j] = p1;
-            j = j + 1;
-            p1 = strtok (NULL, delim1);
-        }
-
-        for (j = 0; j < 3 ; ++j) {
-            printf("%s\n", array1[j]);
-        }
-        array[i] = array1[1];
-    } 
-    
-    for (i = 0; i < 4; ++i){
-        printf("%s\n", array[i]);
-    }
-
-    sscanf(array[0], "%d", codeid);
-    printf("codeid is %d\n", *codeid);
-
-    sscanf(array[1], "%d", dataid);
-    printf("dataid is %d\n", *dataid);
-
-    sscanf(array[3], "%d", args_len);
-    printf("arguments length is %d\n", *args_len);
-
-    char delim2[] = {' ', '"'};
-    int m = 0;
-    char *p2 = strtok(array[2], delim2);
-    char *array2[1]; // codeid dataid and name
-
-    while (p2 != NULL && m < 1)
-    {
-        array2[m] = p2;
-        m = m + 2;
-        p2 = strtok (NULL, delim2);
-    }
-
-    *func_len = strlen(array2[0]);
-    printf("funcname length is %d\n", *func_len);
-    strncpy(funcname, array2[0], *func_len);
-    printf("func name is %s\n", funcname);
-    
-    // get the parameters of a function
+// Get all the needed parameters for next execution.
+void deal_with_message(int idx, int* codeid, int* dataid, char* funcname, int* func_len, int* args, int* args_len) {    
+    *func_len = allMsgArray[idx].others[0];
+    *args_len = allMsgArray[idx].others[1];
     for (int n = 0; n < *args_len; n++) {
         args[n] = allMsgArray[idx].params[n];
     }
-    
+    strncpy(funcname, allMsgArray[idx].func, *func_len);
+    *codeid = allMsgArray[idx].others[2];
+    *dataid = allMsgArray[idx].others[3];
 }
 
 void addMsgs(int msg_count, MsgArray array[MAX_MSG]) {
@@ -492,10 +438,10 @@ int _tmain(int argc, _TCHAR* argv[])
     
     // code & data index
     // For example1: 8 and 9 is moduleOne's codeid and dataid respectively.
-    //int codeidx = 4 + MAX_LEAF_NODE;
-    //int dataidx = 5 + MAX_LEAF_NODE;
-    int codeidx = 8 + MAX_LEAF_NODE;
-    int dataidx = 9 + MAX_LEAF_NODE;
+    int codeidx = 4 + MAX_LEAF_NODE;
+    int dataidx = 5 + MAX_LEAF_NODE;
+    // int codeidx = 8 + MAX_LEAF_NODE;
+    // int dataidx = 9 + MAX_LEAF_NODE;
 
     // prepare args of ecall
     HASHTYPE oldhash = MTReadNode(tree,ROOT)->hash;
@@ -526,11 +472,12 @@ int _tmain(int argc, _TCHAR* argv[])
 
     // add messages into the MessageArray in App.cpp
     addMsgs(msg_count, msgArray);
+    //print_message_params(0, msgArray);
 
     // deal with all messages
     for(int i=0; i<index_now; i++){
         printf("**********************print messages %d after ecall************************** \n", i);
-        print_message_params(i, allMsgArray);
+        // print_message_params(i, allMsgArray);
         // Codeid and dataid has already added 64.
         int codeid_tempt = -1;
         int dataid_tempt = -1;
@@ -539,12 +486,6 @@ int _tmain(int argc, _TCHAR* argv[])
         int wasmargs_tempt[100] = {-1};
         int args_length = -1;
         deal_with_message(i, &codeid_tempt, &dataid_tempt, funcname_tempt, &func_length, wasmargs_tempt, &args_length);
-        printf("*************************************************\n");
-        printf("codeid is %d\n", codeid_tempt);
-        printf("dataid is %d\n", dataid_tempt);
-        printf("arguments length is %d\n", args_length);
-        printf("funcname length is %d\n", func_length);
-        printf("func name is %s\n", funcname_tempt);
 
         MsgArray msgArray_tempt[MAX_MSG];
         int msg_count_tempt = 100;
@@ -593,16 +534,16 @@ int _tmain(int argc, _TCHAR* argv[])
         }
 
         printf("msg count tempt is %d\n", msg_count_tempt);
-        for(int j=0; j<msg_count_tempt; j++){
-            print_message_params(j, msgArray_tempt);
-        }
+        // for(int j=0; j<msg_count_tempt; j++){
+        //     print_message_params(j, msgArray_tempt);
+        // }
         // add messages into the MessageArray in App.cpp
         addMsgs(msg_count_tempt, msgArray_tempt);
 
         // print info
-        for(int j=0; j<index_now; j++){
-            print_message_params(j, allMsgArray);
-        }
+        // for(int j=0; j<index_now; j++){
+        //     print_message_params(j, allMsgArray);
+        // }
 
         // record transaction
         record_transaction(oldhash_tempt, tx_str_out_tempt, newhash_tempt, ret_report_tempt);
