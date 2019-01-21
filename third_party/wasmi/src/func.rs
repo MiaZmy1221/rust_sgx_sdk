@@ -79,15 +79,15 @@ pub(crate) enum FuncInstanceInternal {
 		signature: Arc<Signature>,
 		module: Weak<ModuleInstance>,
 		body: Arc<FuncBody>,
-		codeid: Cell<usize>,
-		dataid: Cell<usize>,
+		codeid: Cell<i32>,
+		dataid: Cell<i32>,
 		name: RefCell<String>,
 	},
 	Host {
 		signature: Signature,
 		host_func_index: usize,
-		codeid: Cell<usize>,
-		dataid: Cell<usize>,
+		codeid: Cell<i32>,
+		dataid: Cell<i32>,
 		name: RefCell<String>,
 	},
 }
@@ -185,9 +185,9 @@ impl FuncInstance {
 	}
 
 	/// Get the length of a function's paramters.
-	pub fn get_params_len(&self) -> usize {
+	pub fn get_params_len(&self) -> i32 {
 		let signature = self.signature();
-		signature.params_num()
+		signature.params_num() as i32
 	}
 
 	/// Get the return value of a function. If it is none, return false; otherwise return true. 
@@ -238,7 +238,7 @@ impl FuncInstance {
 	}
 
 	/// Get codeid and dataid for a function.
-	pub fn get_ids(&self) -> (&Cell<usize>, &Cell<usize>) {
+	pub fn get_ids(&self) -> (&Cell<i32>, &Cell<i32>) {
 		match *self.as_internal() {
 			FuncInstanceInternal::Internal { ref codeid, ref dataid, .. } => (codeid, dataid),
 			FuncInstanceInternal::Host { ref codeid, ref dataid, .. } => (codeid, dataid),
@@ -246,7 +246,7 @@ impl FuncInstance {
 	}
 
 	/// Set codeid and dataid for a function.
-	pub fn set_ids(&self, codeid: usize, dataid: usize) {
+	pub fn set_ids(&self, codeid: i32, dataid: i32) {
 		let (func_codeid, func_dataid) = self.get_ids();
 		(*func_codeid).set(codeid);
 		(*func_dataid).set(dataid);

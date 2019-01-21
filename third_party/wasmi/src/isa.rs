@@ -95,7 +95,7 @@ pub struct Target {
 	pub drop_keep: DropKeep,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Instruction {
 	/// Push a local variable or an argument from the specified depth.
 	GetLocal(u32),

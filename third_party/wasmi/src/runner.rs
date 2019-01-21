@@ -21,16 +21,16 @@ use isa;
 
 /// Changes compared to the previous file:
 ///
-/// The main change is to stop the execution when a message is produced between actors/modules.
+/// The main change is to record a message and continue the execution when a message is produced between actors/modules.
 /// 1) Add some static variables to store info.
-/// 2) Add a new InstructionOutcome "ReturnForCallIndirect" and RunResult "ReturnResultForCallIndirect".
+/// 2) Add a new InstructionOutcome "ReturnForCallIndirect".
 /// 3) Add clone trait for enum RunResult and impl fmt::Debug for RunResult for future use.
-/// 4) Change the function start_execution() to stop the execution when encountering a new produced message.
-/// 5) Change the function run_interpreter_loop() to set stop flag for stopping the program when encounting a message.
-/// 6) Change do_run_function() and run_call_indirect() to produce a message. A message will be produced only when a module/actor calls another module/actor's funtion.
-/// 7) Add trait clone for struct ValueStack.
-/// 8) Implement get_args() in ValueStack in order to get parameters of the called function.
-/// 9) string_to_static_str() is used to transfer a string to static str.
+/// 4) Change the function start_execution() to initialize static variables in case of errors.
+/// 5) Change do_run_function() and run_call_indirect() to produce a message. A message will be produced only when a module/actor calls another module/actor's funtion.
+/// 6) Add trait clone for struct ValueStack.
+/// 7) Implement get_args() in ValueStack in order to get parameters of the called function.
+/// 8) string_to_static_str() is used to transfer a string to static str.
+/// 9) Add function print_vstack() to print the whole value stack for test.
 
 /// Maximum number of entries in value stack.
 pub const DEFAULT_VALUE_STACK_LIMIT: usize = (1024 * 1024) / ::std::mem::size_of::<RuntimeValue>();
@@ -41,11 +41,9 @@ pub const DEFAULT_CALL_STACK_LIMIT: usize = 64 * 1024;
 /// static variables
 ///
 /// message_check is for checking whether the message is produced or not. If not, set it to -1, otherwise, set it to the index of the called function in the module table. 
-/// stop the execution if there is a produced message;
 /// args_static are the arguments needed by the called function;
 /// args_num is the number of the arguments of the called function.
 pub static mut message_check: i32 = -1;
-pub static mut stop: bool = false;
 pub static mut args_static: &str = "";
 pub static mut args_num: i32 = -1;
 
@@ -92,16 +90,14 @@ enum RunResult {
 	Return,
 	/// Function is calling other function.
 	NestedCall(FuncRef),
-	/// Return result because of the new message. Direct reason is using call_indirect.
-	ReturnResultForCallIndirect,
 }
 
 impl fmt::Debug for RunResult {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match self {
-				RunResult::ReturnResultForCallIndirect => {
-					write!(f, "RunResult::ReturnResultForCallIndirect")
-				}
+				// RunResult::ReturnResultForCallIndirect => {
+				// 	write!(f, "RunResult::ReturnResultForCallIndirect")
+				// }
 				RunResult::Return => {
 					write!(f, "RunResult::Return")
 				}
@@ -156,7 +152,6 @@ impl Interpreter {
 		assert!(self.state == InterpreterState::Initialized);
 		// Reset all static variables before execution. 
 		unsafe {
-			stop = false;
 			message_check = -1;
 			args_static = "";
 			args_num = -1;
@@ -164,24 +159,13 @@ impl Interpreter {
 
 		self.state = InterpreterState::Started;
 		self.run_interpreter_loop(externals)?;
+		let opt_return_value = self.return_type.map(|_vt| {self.value_stack.pop()});
 
-		// If the stop flag is true, stop executing the following instructions.
-		let mut stop_execution :bool = false;
-		unsafe {
-			stop_execution = stop;
-		}
-		if stop_execution == true {
-			Ok(None)
-		}
-		else {
-			let opt_return_value = self.return_type.map(|_vt| {
-				self.value_stack.pop()
-			});
-			// Ensure that stack is empty after the execution. This is guaranteed by the validation properties.
-			assert!(self.value_stack.len() == 0);
+		// Ensure that stack is empty after the execution. This is guaranteed by the validation properties.
+		self.value_stack.print_vstack();
+		assert!(self.value_stack.len() == 0);
 
-			Ok(opt_return_value)
-		}
+		Ok(opt_return_value)
 
 	}
 
@@ -244,14 +228,6 @@ impl Interpreter {
 				).map_err(Trap::new)?;
 
 			match function_return {
-				// Set the stop flag to true, which means stop executing the following instructions. 
-				RunResult::ReturnResultForCallIndirect => {
-					unsafe {
-						stop = true;
-					}
-					return Ok(());
-				}
-
 				RunResult::Return => {
 					if self.call_stack.last().is_none() {
 						// This was the last frame in the call stack. This means we
@@ -322,7 +298,8 @@ impl Interpreter {
 				},
 				// When a function that does not belong to the module is called, the RunResult should be ReturnResultForCallIndirect.
 				InstructionOutcome::ReturnForCallIndirect => {
-					return Ok(RunResult::ReturnResultForCallIndirect);
+					function_context.position += 1;
+					continue;
 				}
 			}
 		}
@@ -1369,16 +1346,26 @@ impl ValueStack {
 	/// Get arguments of the called function via the stack.
 	#[inline]
 	fn get_args(&mut self) -> String {
-		let mut stack_cp = self.clone();
 		let mut args_mut: String = String::new();
 		unsafe{
 			while args_num > 0 {
 				args_num = args_num - 1;
-				let tempt = stack_cp.pop_as::<i32>();;
+				let tempt = self.pop_as::<i32>();;
 				args_mut = args_mut + &tempt.to_string() + "+";
 			}
 		}
 		args_mut
+	}
+
+	/// Print value stack for test.
+	#[inline]
+	fn print_vstack(&mut self) {
+		let stack_cp = self.clone();
+		let mut index = self.sp.clone();
+		while index > 0 {
+			index -= 1;
+			println!("pop index {:?} is {:?}", index, stack_cp.buf[index]);
+		}
 	}
 }
 

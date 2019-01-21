@@ -400,10 +400,8 @@ pub use self::global::{GlobalInstance, GlobalRef};
 pub use self::func::{FuncInstance, FuncRef, FuncInvocation, ResumableError};
 pub use self::types::{Signature, ValueType, GlobalDescriptor, TableDescriptor, MemoryDescriptor};
 
-/// Message represents one message and MessageArray is the list of messages.
-///
-/// Every actor has its own message array.
-pub use self::message::{Message, MessageArray};
+/// Message represents one message.
+pub use self::message::Message;
 
 /// Static global variables in file runner.rs.
 ///

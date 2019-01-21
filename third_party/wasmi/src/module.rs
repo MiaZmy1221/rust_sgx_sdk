@@ -262,7 +262,6 @@ impl ModuleInstance {
 		self.globals.borrow_mut().get(idx as usize).cloned()
 	}
 
-
 	/// change the pub(crate) to pub
 	pub fn func_by_index(&self, idx: u32) -> Option<FuncRef> {
 		self.funcs.borrow().get(idx as usize).cloned()
@@ -286,7 +285,7 @@ impl ModuleInstance {
 	}
 
 	/// Set ids for every function in the given module.
-	pub fn set_ids_for_funcs(&self, codeid: usize, dataid: usize) {
+	pub fn set_ids_for_funcs(&self, codeid: i32, dataid: i32) {
 		let funcs = self.funcs.borrow();
 		for func in funcs.to_vec() {
 			func.set_ids(codeid, dataid);
