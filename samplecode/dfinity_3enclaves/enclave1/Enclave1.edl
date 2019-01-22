@@ -41,7 +41,10 @@ enclave {
             public void test_enclave_init();
             public uint32_t test_create_session(sgx_enclave_id_t src_enclave_id, sgx_enclave_id_t dest_enclave_id);
             public uint32_t test_close_session(sgx_enclave_id_t src_enclave_id, sgx_enclave_id_t dest_enclave_id);
-
+            public sgx_status_t test_generate_request(sgx_enclave_id_t src_enclave_id, sgx_enclave_id_t dest_enclave_id, 
+                                            int node_idx, [out, size = payload_len]char* payload, int payload_len);
+            public sgx_status_t test_get_key_from_response(sgx_enclave_id_t src_enclave_id, sgx_enclave_id_t dest_enclave_id, 
+                                            [in, size = payload_len]char* payload, int payload_len);
             public sgx_target_info_t ecall_get_ti();
 
     };

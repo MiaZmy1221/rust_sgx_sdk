@@ -36,9 +36,15 @@ extern crate sgx_types;
 use sgx_types::*;
 
 extern crate attestation;
-use attestation::types::*;
-use attestation::err::*;
-use attestation::func::*;
+use attestation::*;
+
+
+#[macro_use]
+extern crate sgx_tstd as std;
+use std::slice;
+use std::ptr;
+use std::str;
+use std::string::String;
 
 fn verify_peer_enclave_trust(peer_enclave_identity: &sgx_dh_session_enclave_identity_t )-> u32 {
 
@@ -60,11 +66,43 @@ pub extern "C" fn test_enclave_init() {
 
 #[no_mangle]
 pub extern "C" fn test_create_session(src_enclave_id: sgx_enclave_id_t, dest_enclave_id: sgx_enclave_id_t) -> u32 {
-    create_session(src_enclave_id, dest_enclave_id) as u32
+    let mut key: sgx_key_128bit_t = sgx_key_128bit_t::default(); // Session Key
+    let ret = create_session(src_enclave_id, dest_enclave_id, &mut key) as u32;
+    src_session_key_insert(&dest_enclave_id, &key);
+    src_session_key_print();
+    ret
 }
 
 #[no_mangle]
 #[allow(unused_variables)]
 pub extern "C" fn test_close_session(src_enclave_id: sgx_enclave_id_t, dest_enclave_id: sgx_enclave_id_t) -> u32 {
-    close_session(src_enclave_id, dest_enclave_id) as u32
+    let ret = close_session(src_enclave_id, dest_enclave_id) as u32;
+    src_session_key_remove(&dest_enclave_id);
+    ret
+}
+
+#[no_mangle]
+pub extern "C" fn test_generate_response(src_enclave_id: sgx_enclave_id_t, dest_enclave_id: sgx_enclave_id_t,
+                                         request: *mut u8, request_len: c_int,
+                                         response: *mut u8, response_len: c_int) -> sgx_status_t {
+    let session_key: sgx_key_128bit_t = dest_session_key_get(&src_enclave_id); // Session Key
+    
+    let ciphertext = unsafe{slice::from_raw_parts(request, request_len as usize)};
+    println!("ciphertext: {:?}", ciphertext);
+    let s = String::from_utf8(ciphertext.to_vec()).unwrap();
+    let decrypted = deconstruct_payload(&s, &session_key);
+    println!("decrypted: {:?}", decrypted);
+
+    // get node_idx
+    let decrypted_str = String::from_utf8(decrypted).unwrap();
+    let node_idx: i32 = decrypted_str.parse().unwrap(); 
+    println!("node_idx: {:?}", node_idx);
+
+    // should put the requested key as the plaintext
+    let node_key = [22; 16].to_vec();
+    let payload = construct_payload(&node_key, &session_key);
+    println!("payload: {:?}", payload);
+    let bytes = payload.as_bytes();
+    unsafe{ptr::copy_nonoverlapping(bytes.as_ptr(), response, bytes.len())};
+    sgx_status_t::SGX_SUCCESS
 }

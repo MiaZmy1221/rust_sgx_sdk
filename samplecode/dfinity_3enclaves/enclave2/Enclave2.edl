@@ -45,13 +45,12 @@ enclave {
     include "merkle.h"
 
     trusted{
-            public void test_enclave_init();
-            public uint32_t test_create_session(sgx_enclave_id_t src_enclave_id, sgx_enclave_id_t dest_enclave_id);
-            public uint32_t test_close_session(sgx_enclave_id_t src_enclave_id, sgx_enclave_id_t dest_enclave_id);
-
-            public sgx_target_info_t ecall_get_ti();
-            public sgx_status_t ecall_read_and_verify_report([in, size=tx_size]void* tx_array, int tx_count, int tx_size, // Tx Array
-                                                      [in]sgx_target_info_t* exec_ti);
+        public void test_enclave_init();
+        public uint32_t test_create_session(sgx_enclave_id_t src_enclave_id, sgx_enclave_id_t dest_enclave_id);
+        public uint32_t test_close_session(sgx_enclave_id_t src_enclave_id, sgx_enclave_id_t dest_enclave_id);
+        public sgx_target_info_t ecall_get_ti();
+        public sgx_status_t ecall_read_and_verify_report([in, size=tx_size]void* tx_array, int tx_count, int tx_size, // Tx Array
+                                                      [in]sgx_target_info_t* exec_ti, [out]Transaction* tx_out);
     };
 
     untrusted {

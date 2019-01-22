@@ -99,7 +99,7 @@ else
 	App_Link_Flags += -lsgx_uae_service
 endif
 
-App_Link_Flags += -lsgx_ustdc -L./mktree -lmerkle
+App_Link_Flags += -lsgx_ustdc -L./mktree -lmerkle -lssl -lcrypto
 
 App_Cpp_Objects := $(App_Cpp_Files:.cpp=.o)
 

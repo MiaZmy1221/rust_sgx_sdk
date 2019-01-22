@@ -26,63 +26,26 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use sgx_types::*;
-use sgx_tdh::*;
-use std::default::Default;
-
-pub const DH_KEY_SIZE: i32  = 20;
-pub const NONCE_SIZE : i32  = 16;
-pub const MAC_SIZE: i32     = 16;
-pub const MAC_KEY_SIZE: i32 = 16;
-pub const PADDING_SIZE: i32 = 16;
-
-pub const TAG_SIZE: i32     = 16;
-pub const IV_SIZE: i32      = 12;
-
-pub const DERIVE_MAC_KEY: i32 = 0x0;
-pub const DERIVE_SESSION_KEY: i32 = 0x1;
-pub const DERIVE_VK1_KEY: i32 = 0x3;
-pub const DERIVE_VK2_KEY: i32 = 0x4;
-
-pub const CLOSED: u32 = 0x0;
-pub const IN_PROGRESS: u32 = 0x1;
-pub const ACTIVE: u32 = 0x2;
-
-pub const MESSAGE_EXCHANGE: i32 = 0x0;
-pub const ENCLAVE_TO_ENCLAVE_CALL: i32 = 0x1;
-
-pub const INVALID_ARGUMENT: i32 = -2;   ///< Invalid function argument
-pub const LOGIC_ERROR: i32 = -3 ;  ///< Functional logic error
-pub const FILE_NOT_FOUND : i32 =  -4 ;  ///< File not found
-
-pub const VMC_ATTRIBUTE_MASK: u64 = 0xFFFFFFFFFFFFFFCB;
-
-pub const MAX_SESSION_COUNT: i32 = 16;
-
-pub struct Callback {
-    pub verify: fn(&sgx_dh_session_enclave_identity_t) -> u32,
-}
-
-pub enum DhSessionStatus {
-    Closed,
-    InProgress(SgxDhResponder),
-    Active(sgx_key_128bit_t),
-}
-
-impl Default for DhSessionStatus {
-    fn default() -> DhSessionStatus {
-        DhSessionStatus::Closed
+impl_enum! {
+    #[repr(u32)]
+    #[derive(Copy, Clone, PartialEq, Eq)]
+    pub enum ATTESTATION_STATUS {
+        SUCCESS                 = 0x00,
+        INVALID_PARAMETER       = 0xE1,
+        VALID_SESSION           = 0xE2,
+        INVALID_SESSION         = 0xE3,
+        ATTESTATION_ERROR       = 0xE4,
+        ATTESTATION_SE_ERROR    = 0xE5,
+        IPP_ERROR               = 0xE6,
+        NO_AVAILABLE_SESSION_ERROR = 0xE7,
+        MALLOC_ERROR            = 0xE8,
+        ERROR_TAG_MISMATCH      =  0xE9,
+        OUT_BUFFER_LENGTH_ERROR = 0xEA,
+        INVALID_REQUEST_TYPE_ERROR = 0xEB,
+        INVALID_PARAMETER_ERROR = 0xEC,
+        ENCLAVE_TRUST_ERROR     = 0xED,
+        ENCRYPT_DECRYPT_ERROR   = 0xEE,
+        DUPLICATE_SESSION       = 0xEF,
+        UNKNOWN_ERROR           = 0xF0,
     }
-}
-
-#[derive(Default)]
-pub struct DhSession {
-    pub session_id: u32,
-    pub session_status: DhSessionStatus,
-}
-
-#[derive(Default)]
-pub struct DhSessionInfo {
-    pub enclave_id: sgx_enclave_id_t,
-    pub session: DhSession,
 }

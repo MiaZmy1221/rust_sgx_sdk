@@ -39,7 +39,6 @@ use std::mem;
 use types::*;
 use err::*;
 
-
 extern {
     pub fn session_request_ocall(ret: *mut u32,
                                  src_enclave_id: sgx_enclave_id_t,
@@ -197,7 +196,6 @@ fn exchange_report_safe(src_enclave_id: sgx_enclave_id_t, dh_msg2: &mut sgx_dh_m
     }
 
     session_info.session.session_status = DhSessionStatus::Active(dh_aek);
-    // println!("session_info: {:?}", session_info.session.session_status);
 
     ATTESTATION_STATUS::SUCCESS
 }

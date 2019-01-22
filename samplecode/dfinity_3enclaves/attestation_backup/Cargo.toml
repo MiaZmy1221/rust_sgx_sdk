@@ -12,7 +12,3 @@ sgx_types = { path = "../../../sgx_types" }
 sgx_trts = { path = "../../../sgx_trts" }
 sgx_tstd = { path = "../../../sgx_tstd" }
 sgx_tdh = { path = "../../../sgx_tdh" }
-sgx_tcrypto = { path = "../../../sgx_tcrypto" }
-
-[dependencies]
-lazy_static = { version = "1.1.0", features = ["spin_no_std"] }

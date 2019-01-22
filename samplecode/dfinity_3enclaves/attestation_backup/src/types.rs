@@ -78,7 +78,7 @@ impl Default for DhSessionStatus {
 #[derive(Default)]
 pub struct DhSession {
     pub session_id: u32,
-    pub session_status: DhSessionStatus,
+    pub session_status: DhSessionStatus
 }
 
 #[derive(Default)]
