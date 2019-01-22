@@ -459,84 +459,33 @@ bool check_transaction(Transaction tx)
 Message allMsgArray[MAX_MSG];
 int msg_num = 0;
 
-void print_message_params(int idx, Message array[MAX_MSG])
+void print_message_params(int idx, MsgArray array[MAX_MSG])
 {
+    printf("message %d function is: ", idx);
+    for (int i=0; i<100; i++)
+        printf("%c", array[idx].func[i]);
+    printf("\n");
+
     printf("message %d params are: ", idx);
     for (int i=0; i<100; i++)
         printf("%d ", array[idx].params[i]);
     printf("\n");
 
-    printf("message %d function is: %s\n", idx, array[idx].func);
+    for (int i=0; i<4; i++)
+        printf("%d ", array[idx].others[i]);
+    printf("\n");
 }
 
-void deal_with_message(int idx, int* codeid, int* dataid, char* funcname, int* func_len, int* args, int* args_len) {
-    //get the codeid, dataid, name, name_legth, and args length of a function
-    char delim[] = {"|"};
-    int i = 0;
-    char *p = strtok(allMsgArray[idx].func, delim);
-    char *array[4]; // codeid dataid name and params_length
-
-    while (p != NULL && i < 4)
-    {
-        array[i] = p;
-        i = i + 1;
-        p = strtok (NULL, delim);
-    }
-
-    for (i = 0; i < 3; ++i){
-        printf("%s\n", array[i]);
-        char delim1[] = {':', '}'};
-        int j = 0;
-        char *p1 = strtok(array[i], delim1);
-        char *array1[3]; // might be 3 
-        while (p1 != NULL && j < 3)
-        {
-            array1[j] = p1;
-            j = j + 1;
-            p1 = strtok (NULL, delim1);
-        }
-
-        for (j = 0; j < 3 ; ++j) {
-            printf("%s\n", array1[j]);
-        }
-        array[i] = array1[1];
-    } 
-    
-    for (i = 0; i < 4; ++i){
-        printf("%s\n", array[i]);
-    }
-
-    sscanf(array[0], "%d", codeid);
-    printf("codeid is %d\n", *codeid);
-
-    sscanf(array[1], "%d", dataid);
-    printf("dataid is %d\n", *dataid);
-
-    sscanf(array[3], "%d", args_len);
-    printf("arguments length is %d\n", *args_len);
-
-    char delim2[] = {' ', '"'};
-    int m = 0;
-    char *p2 = strtok(array[2], delim2);
-    char *array2[1]; // codeid dataid and name
-
-    while (p2 != NULL && m < 1)
-    {
-        array2[m] = p2;
-        m = m + 2;
-        p2 = strtok (NULL, delim2);
-    }
-
-    *func_len = strlen(array2[0]);
-    printf("funcname length is %d\n", *func_len);
-    strncpy(funcname, array2[0], *func_len);
-    printf("func name is %s\n", funcname);
-    
-    // get the parameters of a function
+// Get all the needed parameters for next execution.
+void deal_with_message(int idx, int* codeid, int* dataid, char* funcname, int* func_len, int* args, int* args_len) {    
+    *func_len = allMsgArray[idx].others[0];
+    *args_len = allMsgArray[idx].others[1];
     for (int n = 0; n < *args_len; n++) {
         args[n] = allMsgArray[idx].params[n];
     }
-    
+    strncpy(funcname, allMsgArray[idx].func, *func_len);
+    *codeid = allMsgArray[idx].others[2];
+    *dataid = allMsgArray[idx].others[3];
 }
 
 void addMessage(int count, Message* array) {
@@ -599,6 +548,12 @@ void execute(MerkleTree *tree, int codeidx, int dataidx, char* wasmfunc, int* wa
 
     // add msg to global allMsgArray
     addMessage(count, tempArray);
+
+    // print the messages
+    for(int i = 0; i < count; i++){
+        printf("**********************print messages %d after ecall************************** \n", i);
+        print_message_params(i, allMsgArray);
+    }
 
     // record transaction
     record_transaction(tx_out);
@@ -675,7 +630,7 @@ int _tmain(int argc, _TCHAR* argv[])
     char wasmfunc[64] = "callref";
     int wasmargs[1] = {1};
 
-    execute(tree, 8 + MAX_LEAF_NODE, 9 + MAX_LEAF_NODE, wasmfunc, wasmargs, vali_ti);
+    execute(tree, 4 + MAX_LEAF_NODE, 5 + MAX_LEAF_NODE, wasmfunc, wasmargs, vali_ti);
 
     free(tree);
 
