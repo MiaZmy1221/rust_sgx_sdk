@@ -2,7 +2,7 @@
 use std::sync::SgxMutex;
 use sgxwasm::{SpecDriver, boundary_value_to_runtime_value, result_covert};
 use wasmi::{ModuleInstance, ImportsBuilder, RuntimeValue, Error as InterpreterError, Module, NopExternals};
-use wasmi::{message_check, args_static};
+use wasmi::{args_static, func_ids};
 use wasmi::{Message, TrapKind};
 use std::fmt;
 use wasmi::{TableInstance, TableRef, FuncInstance, FuncRef, Signature, ModuleImportResolver, ValueType, Trap, RuntimeArgs, Externals};
@@ -28,7 +28,6 @@ use std::string::ToString;
 /// 3) Function run_data() is to run modules with import DfinityData.
 /// 4) Function run_func() is to run modules with import DfinityFunc.
 
-
 #[derive(Clone)]
 pub struct DfinityFunc {
     pub table: Option<TableRef>,
@@ -52,9 +51,10 @@ impl fmt::Debug for DfinityFunc {
 /// That is, prepare for the funcmap which should contains all the functions we need for calling another module.
 fn preload_example1() -> HashMap<i32, Option<FuncRef>> {
     // code2 is sum.wat's bytecode, which contains two functions sum and sum2
+    println!("This is example1");
     let mut code2: Vec<u8> = [0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0d, 0x03, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x02, 0x7f, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x03, 0x03, 0x02, 0x01, 0x02, 0x06, 0x06, 0x01, 0x7f, 0x01, 0x41, 0x00, 0x0b, 0x07, 0x0e, 0x02, 0x03, 0x73, 0x75, 0x6d, 0x00, 0x00, 0x04, 0x73, 0x75, 0x6d, 0x32, 0x00, 0x01, 0x0a, 0x14, 0x02, 0x09, 0x00, 0x20, 0x00, 0x20, 0x01, 0x6a, 0x24, 0x00, 0x0b, 0x08, 0x00, 0x41, 0x02, 0x41, 0x03, 0x10, 0x00, 0x0b].to_vec();
     let module2 = wasmi::Module::from_buffer(&code2).unwrap();
-    let instance2 = ModuleInstance::new(&module2,&ImportsBuilder::default()).expect("Failed to instantiate module").assert_no_start();
+    let instance2 = ModuleInstance::new(&module2, &ImportsBuilder::default()).expect("Failed to instantiate module").assert_no_start();
     instance2.set_ids_for_funcs(70 as i32, 71 as i32);
     instance2.set_func_name_for_funcs();
     let func_tempt1 = instance2.func_by_index(0).clone().unwrap();
@@ -69,6 +69,7 @@ fn preload_example1() -> HashMap<i32, Option<FuncRef>> {
 /// then moduleTwo's call_sum function calls moduleThree's function sum.
 fn preload_example2() -> HashMap<i32, Option<FuncRef>> {
     // code2 is moduleTwo's bytecode, which contains two functions: one is named call_sum, the other is func.in.
+    println!("This is example3");
     let mut code2: Vec<u8> = [0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x12, 0x04, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x02, 0x7f, 0x7f, 0x00, 0x60, 0x02, 0x7f, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x02, 0x14, 0x01, 0x04, 0x66, 0x75, 0x6e, 0x63, 0x0b, 0x69, 0x6e, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c, 0x69, 0x7a, 0x65, 0x00, 0x01, 0x03, 0x02, 0x01, 0x03, 0x04, 0x04, 0x01, 0x70, 0x00, 0x01, 0x07, 0x14, 0x02, 0x05, 0x74, 0x61, 0x62, 0x6c, 0x65, 0x01, 0x00, 0x08, 0x63, 0x61, 0x6c, 0x6c, 0x5f, 0x73, 0x75, 0x6d, 0x00, 0x01, 0x0a, 0x13, 0x01, 0x11, 0x00, 0x41, 0x00, 0x41, 0x02, 0x10, 0x00, 0x41, 0x01, 0x41, 0x03, 0x41, 0x00, 0x11, 0x02, 0x00, 0x0b].to_vec();
     let module2 = wasmi::Module::from_buffer(&code2).unwrap();
     let mut func = DfinityFunc::new_without_funcmap();
@@ -94,6 +95,50 @@ fn preload_example2() -> HashMap<i32, Option<FuncRef>> {
     default_funcmap
 }
 
+/// Preload some data for the display example.
+fn preload_example3() -> HashMap<i32, Option<FuncRef>> {
+    println!("This is example3");
+    let mut e1_code: Vec<u8> = [0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x15, 0x04, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x02, 0x7f, 0x7f, 0x00, 0x60, 0x03, 0x7f, 0x7f, 0x7f, 0x00, 0x60, 0x01, 0x7f, 0x01, 0x7f, 0x02, 0x27, 0x02, 0x04, 0x66, 0x75, 0x6e, 0x63, 0x0b, 0x69, 0x6e, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c, 0x69, 0x7a, 0x65, 0x00, 0x01, 0x04, 0x66, 0x75, 0x6e, 0x63, 0x0b, 0x65, 0x78, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c, 0x69, 0x7a, 0x65, 0x00, 0x03, 0x03, 0x03, 0x02, 0x00, 0x02, 0x04, 0x04, 0x01, 0x70, 0x00, 0x02, 0x05, 0x03, 0x01, 0x00, 0x01, 0x06, 0x06, 0x01, 0x7f, 0x01, 0x41, 0x00, 0x0b, 0x07, 0x24, 0x04, 0x05, 0x74, 0x61, 0x62, 0x6c, 0x65, 0x01, 0x00, 0x06, 0x6d, 0x65, 0x6d, 0x6f, 0x72, 0x79, 0x02, 0x00, 0x05, 0x73, 0x74, 0x6f, 0x72, 0x65, 0x00, 0x02, 0x07, 0x63, 0x61, 0x6c, 0x6c, 0x72, 0x65, 0x66, 0x00, 0x03, 0x0a, 0x27, 0x02, 0x06, 0x00, 0x20, 0x00, 0x24, 0x00, 0x0b, 0x1e, 0x00, 0x41, 0x00, 0x41, 0x02, 0x10, 0x00, 0x20, 0x00, 0x20, 0x01, 0x41, 0x00, 0x11, 0x01, 0x00, 0x41, 0x01, 0x41, 0x03, 0x10, 0x00, 0x20, 0x02, 0x41, 0x01, 0x11, 0x00, 0x00, 0x0b].to_vec();
+    let mut e2_code: Vec<u8> = [0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x14, 0x04, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x02, 0x7f, 0x7f, 0x00, 0x60, 0x02, 0x7f, 0x7f, 0x00, 0x60, 0x01, 0x7f, 0x01, 0x7f, 0x02, 0x27, 0x02, 0x04, 0x66, 0x75, 0x6e, 0x63, 0x0b, 0x69, 0x6e, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c, 0x69, 0x7a, 0x65, 0x00, 0x01, 0x04, 0x66, 0x75, 0x6e, 0x63, 0x0b, 0x65, 0x78, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c, 0x69, 0x7a, 0x65, 0x00, 0x03, 0x03, 0x02, 0x01, 0x02, 0x04, 0x04, 0x01, 0x70, 0x00, 0x01, 0x05, 0x03, 0x01, 0x00, 0x01, 0x06, 0x06, 0x01, 0x7f, 0x01, 0x41, 0x00, 0x0b, 0x07, 0x1c, 0x03, 0x05, 0x74, 0x61, 0x62, 0x6c, 0x65, 0x01, 0x00, 0x06, 0x6d, 0x65, 0x6d, 0x6f, 0x72, 0x79, 0x02, 0x00, 0x07, 0x63, 0x61, 0x6c, 0x6c, 0x73, 0x75, 0x6d, 0x00, 0x02, 0x0a, 0x1a, 0x01, 0x18, 0x00, 0x23, 0x00, 0x41, 0x01, 0x6a, 0x24, 0x00, 0x41, 0x00, 0x41, 0x04, 0x10, 0x00, 0x20, 0x00, 0x20, 0x01, 0x41, 0x00, 0x11, 0x02, 0x00, 0x0b].to_vec();
+    let mut e3_code: Vec<u8> = [0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x13, 0x04, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x02, 0x7f, 0x7f, 0x00, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x01, 0x7f, 0x01, 0x7f, 0x02, 0x27, 0x02, 0x04, 0x66, 0x75, 0x6e, 0x63, 0x0b, 0x69, 0x6e, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c, 0x69, 0x7a, 0x65, 0x00, 0x01, 0x04, 0x66, 0x75, 0x6e, 0x63, 0x0b, 0x65, 0x78, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c, 0x69, 0x7a, 0x65, 0x00, 0x03, 0x03, 0x02, 0x01, 0x02, 0x04, 0x04, 0x01, 0x70, 0x00, 0x01, 0x05, 0x03, 0x01, 0x00, 0x01, 0x06, 0x06, 0x01, 0x7f, 0x01, 0x41, 0x00, 0x0b, 0x07, 0x18, 0x03, 0x05, 0x74, 0x61, 0x62, 0x6c, 0x65, 0x01, 0x00, 0x06, 0x6d, 0x65, 0x6d, 0x6f, 0x72, 0x79, 0x02, 0x00, 0x03, 0x69, 0x6e, 0x63, 0x00, 0x02, 0x0a, 0x0b, 0x01, 0x09, 0x00, 0x20, 0x00, 0x41, 0x01, 0x6a, 0x24, 0x00, 0x0b].to_vec();
+    let mut e4_code: Vec<u8> = [0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x16, 0x04, 0x60, 0x03, 0x7f, 0x7f, 0x7f, 0x00, 0x60, 0x02, 0x7f, 0x7f, 0x00, 0x60, 0x02, 0x7f, 0x7f, 0x00, 0x60, 0x01, 0x7f, 0x01, 0x7f, 0x02, 0x27, 0x02, 0x04, 0x66, 0x75, 0x6e, 0x63, 0x0b, 0x69, 0x6e, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c, 0x69, 0x7a, 0x65, 0x00, 0x01, 0x04, 0x66, 0x75, 0x6e, 0x63, 0x0b, 0x65, 0x78, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c, 0x69, 0x7a, 0x65, 0x00, 0x03, 0x03, 0x03, 0x02, 0x02, 0x00, 0x04, 0x04, 0x01, 0x70, 0x00, 0x01, 0x05, 0x03, 0x01, 0x00, 0x01, 0x06, 0x06, 0x01, 0x7f, 0x01, 0x41, 0x00, 0x0b, 0x07, 0x23, 0x04, 0x05, 0x74, 0x61, 0x62, 0x6c, 0x65, 0x01, 0x00, 0x06, 0x6d, 0x65, 0x6d, 0x6f, 0x72, 0x79, 0x02, 0x00, 0x03, 0x73, 0x75, 0x6d, 0x00, 0x02, 0x08, 0x63, 0x61, 0x6c, 0x6c, 0x62, 0x61, 0x63, 0x6b, 0x00, 0x03, 0x0a, 0x1f, 0x02, 0x09, 0x00, 0x20, 0x00, 0x20, 0x01, 0x6a, 0x24, 0x00, 0x0b, 0x13, 0x00, 0x41, 0x00, 0x41, 0x01, 0x10, 0x00, 0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0x41, 0x00, 0x11, 0x00, 0x00, 0x0b].to_vec();
+    
+    let mut default_funcmap = HashMap::new();
+    let mut func = DfinityFunc::new_without_funcmap();
+    let module1 = wasmi::Module::from_buffer(&e1_code).unwrap();
+    let instance1 = ModuleInstance::new(&module1, &ImportsBuilder::new().with_resolver("func", &func)).expect("Failed to instantiate module").assert_no_start();
+    instance1.set_ids_for_funcs(78 as i32, 79 as i32);
+    instance1.set_func_name_for_funcs();
+    let func_tempt1 = instance1.func_by_index(2).clone().unwrap();
+    let func_tempt2 = instance1.func_by_index(3).clone().unwrap();
+    default_funcmap.insert(0 as i32, Some(func_tempt1)); // function store
+    default_funcmap.insert(1 as i32, Some(func_tempt2)); // function callref
+
+    let module2 = wasmi::Module::from_buffer(&e2_code).unwrap();
+    let instance2 = ModuleInstance::new(&module2, &ImportsBuilder::new().with_resolver("func", &func)).expect("Failed to instantiate module").assert_no_start();
+    instance2.set_ids_for_funcs(80 as i32, 81 as i32);
+    instance2.set_func_name_for_funcs();
+    let func_tempt3 = instance2.func_by_index(2).clone().unwrap();
+    default_funcmap.insert(2 as i32, Some(func_tempt3)); // function callsum
+
+    let module3 = wasmi::Module::from_buffer(&e3_code).unwrap();
+    let instance3 = ModuleInstance::new(&module3, &ImportsBuilder::new().with_resolver("func", &func)).expect("Failed to instantiate module").assert_no_start();
+    instance3.set_ids_for_funcs(82 as i32, 83 as i32);
+    instance3.set_func_name_for_funcs();
+    let func_tempt4 = instance3.func_by_index(2).clone().unwrap();
+    default_funcmap.insert(3 as i32, Some(func_tempt4)); // function inc
+    
+    let module4 = wasmi::Module::from_buffer(&e4_code).unwrap();
+    let instance4 = ModuleInstance::new(&module4, &ImportsBuilder::new().with_resolver("func", &func)).expect("Failed to instantiate module").assert_no_start();
+    instance4.set_ids_for_funcs(84 as i32, 85 as i32);
+    instance4.set_func_name_for_funcs();
+    let func_tempt5 = instance4.func_by_index(2).clone().unwrap();
+    let func_tempt6 = instance4.func_by_index(3).clone().unwrap();
+    default_funcmap.insert(4 as i32, Some(func_tempt5)); // function sum
+    default_funcmap.insert(5 as i32, Some(func_tempt6)); // function callback
+
+    default_funcmap
+}
 
 impl DfinityFunc {
     pub fn new_without_funcmap() -> DfinityFunc {
@@ -104,8 +149,7 @@ impl DfinityFunc {
         }
     }
     pub fn new() -> DfinityFunc {
-        // let mut default_funcmap = preload_example1();
-        let mut default_funcmap = preload_example1();
+        let mut default_funcmap = preload_example3();
         DfinityFunc {
             table: Some(TableInstance::alloc(1, None).unwrap()),
             funcmap: default_funcmap,
@@ -337,7 +381,7 @@ impl ModuleImportResolver for DfinityData {
 /// Step4: add data to the module's memory.
 /// Step5: before before invoking the function, get the module's exported memory and assign it to the struct's memory field.
 /// Step6: invoke the function with the given function name and its parameters.
-/// Step7: get messages if any. If message_check equals -1, this means there is no message; else the message_check represents the func index in the table.
+/// Step7: get messages if any. If func_ids equals "", this means there is no message; else it represents all the func ids in the table.
 /// Step8: get the revised memor, assign it to the parameter data_buf, then return to the MessageArray.
 ///        actually, the wast file that does not contain func struct will not produce any new message, so the messageArray is empty.
 pub fn run_data(code: &mut Vec<u8>, data_buf: &mut Vec<u8>, wasm_func: &str, wasm_args: Vec<i32>) -> Vec<Message> {
@@ -358,19 +402,29 @@ pub fn run_data(code: &mut Vec<u8>, data_buf: &mut Vec<u8>, wasm_func: &str, was
     println!("After invoking function, instance is {:?}", instance);
 
     let mut messageArray = Vec::new();
-    let mut message_bool :i32 = -1;
-    let mut args :Vec<i32> = Vec::new();
+    let mut ids: Vec<i32> = Vec::new();
+    let mut args: Vec<&str> = Vec::new();
     unsafe {
-        for tempt_str in args_static.split("+") {
+        for tempt_str in func_ids.split("|") {
             if tempt_str != "" {
-                args.push(tempt_str.parse::<i32>().unwrap());
+                ids.push(tempt_str.parse::<i32>().unwrap());
             }
         }
-        message_bool = message_check;
+        let mut split = args_static.split("|");
+        args = split.collect();
     }
-    args.reverse();
-    if message_bool != -1 {
-        let func_ref = func.clone().table.unwrap().get(message_bool as u32).unwrap();
+    let mut msg_number = ids.len();
+    for i in 0..msg_number {
+        let mut func_id: i32 = -1;
+        let mut args_tempt: Vec<i32> = Vec::new();
+        func_id = *ids.get(i).unwrap();
+        for tempt_str in args.get(i).unwrap().split("+") {
+            if tempt_str != "" {
+                args_tempt.push(tempt_str.parse::<i32>().unwrap());
+            }
+        }
+        args_tempt.reverse();
+        let func_ref = func.clone().table.unwrap().get(func_id as u32).unwrap();
         let tempt_func_ref = func_ref.clone().unwrap();
         let func_name = (*tempt_func_ref).get_name();
         let (mid, did) = (*tempt_func_ref).get_ids();
@@ -379,12 +433,9 @@ pub fn run_data(code: &mut Vec<u8>, data_buf: &mut Vec<u8>, wasm_func: &str, was
         let func_len_final = (*func_name).borrow_mut().to_string().len() as i32;
         let mid_final = (*mid).get();
         let did_final = (*did).get();
-        let temptMessage = Message::new(func_name_final, func_len_final, args, args_len, mid_final, did_final);
+        let temptMessage = Message::new(func_name_final, func_len_final, args_tempt, args_len, mid_final, did_final);
         messageArray.push(temptMessage);
     }
-    data_buf.truncate(0);
-    let revised_memory = instance.memory_by_index(0).unwrap().get_whole_buf().unwrap();
-    data_buf.extend(revised_memory.iter().cloned());
     messageArray
 }
 
@@ -400,7 +451,7 @@ pub fn run_data(code: &mut Vec<u8>, data_buf: &mut Vec<u8>, wasm_func: &str, was
 /// Step6: Check whether the module contains a table export in the exports section and if not, add one.
 ///        Then before before invoking the function, get the module's exported table and assign it to the struct's table field.
 /// Step7: invoke the function with the given function name and its parameters.
-/// Step8: get messages if any. If message_check equals -1, this means there is no message; else the message_check represents the func index in the table.
+/// Step8: get messages if any. If func_ids equals "", this means there is no message; else it represents all the func ids in the table.
 /// Step9: get the revised memory, assign it to the parameter data_buf, then return to the MessageArray.
 
 pub fn run_func(code: &mut Vec<u8>, data_buf: &mut Vec<u8>, wasm_func: &str, wasm_args: Vec<i32>, codeid: i32, dataid: i32) -> Vec<Message> {
@@ -438,19 +489,29 @@ pub fn run_func(code: &mut Vec<u8>, data_buf: &mut Vec<u8>, wasm_func: &str, was
     println!("After invoking function, instance is {:?}", instance);
 
     let mut messageArray = Vec::new();
-    let mut message_bool :i32 = -1;
-    let mut args :Vec<i32> = Vec::new();
+    let mut ids: Vec<i32> = Vec::new();
+    let mut args: Vec<&str> = Vec::new();
     unsafe {
-        for tempt_str in args_static.split("+") {
+        for tempt_str in func_ids.split("|") {
             if tempt_str != "" {
-                args.push(tempt_str.parse::<i32>().unwrap());
+                ids.push(tempt_str.parse::<i32>().unwrap());
             }
         }
-        message_bool = message_check;
+        let mut split = args_static.split("|");
+        args = split.collect();
     }
-    args.reverse();
-    if message_bool != -1 {
-        let func_ref = func.clone().table.unwrap().get(message_bool as u32).unwrap();
+    let mut msg_number = ids.len();
+    for i in 0..msg_number {
+        let mut func_id: i32 = -1;
+        let mut args_tempt: Vec<i32> = Vec::new();
+        func_id = *ids.get(i).unwrap();
+        for tempt_str in args.get(i).unwrap().split("+") {
+            if tempt_str != "" {
+                args_tempt.push(tempt_str.parse::<i32>().unwrap());
+            }
+        }
+        args_tempt.reverse();
+        let func_ref = func.clone().table.unwrap().get(func_id as u32).unwrap();
         let tempt_func_ref = func_ref.clone().unwrap();
         let func_name = (*tempt_func_ref).get_name();
         let (mid, did) = (*tempt_func_ref).get_ids();
@@ -459,11 +520,8 @@ pub fn run_func(code: &mut Vec<u8>, data_buf: &mut Vec<u8>, wasm_func: &str, was
         let func_len_final = (*func_name).borrow_mut().to_string().len() as i32;
         let mid_final = (*mid).get();
         let did_final = (*did).get();
-        let temptMessage = Message::new(func_name_final, func_len_final, args, args_len, mid_final, did_final);
+        let temptMessage = Message::new(func_name_final, func_len_final, args_tempt, args_len, mid_final, did_final);
         messageArray.push(temptMessage);
     }
-    data_buf.truncate(0);
-    let revised_memory = instance.memory_by_index(0).unwrap().get_whole_buf().unwrap();
-    data_buf.extend(revised_memory.iter().cloned());
     messageArray
 }

@@ -407,7 +407,7 @@ pub use self::message::Message;
 ///
 /// Message_check is to check whether there is a new produced message or not because of some actor's unappropriate call of another actor's functions. 
 /// Args_static is to preserve arguments of the called functions.  
-pub use self::runner::{message_check, args_static};
+pub use self::runner::{message_check, args_static, func_ids};
 
 /// WebAssembly-specific sizes and units.
 pub mod memory_units {

@@ -612,10 +612,13 @@ int _tmain(int argc, _TCHAR* argv[])
     MTBuildTreeHelper(tree);
 
     // prepare args of ecall
-    char wasmfunc[64] = "callref";
-    int wasmargs[1] = {1};
-
-    execute(tree, 4 + MAX_LEAF_NODE, 5 + MAX_LEAF_NODE, wasmfunc, 7, wasmargs, 1, vali_ti);
+    char wasmfunc1[64] = "callref";
+    int wasmargs1[64] = {5,6,7};
+    execute(tree, 14 + MAX_LEAF_NODE, 15 + MAX_LEAF_NODE, wasmfunc1, 7, wasmargs1, 3, vali_ti);
+    
+    char wasmfunc2[64] = "callback";
+    int wasmargs2[64] = {5,6,7};
+    execute(tree, 20 + MAX_LEAF_NODE, 21 + MAX_LEAF_NODE, wasmfunc2, 8, wasmargs2, 3, vali_ti);
 
     // deal with Messages
     empty_message_array(tree, vali_ti);

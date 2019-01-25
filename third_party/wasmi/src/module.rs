@@ -117,7 +117,6 @@ impl PartialEq for ExternVal {
 	        }
 	        return false;
     	}
-        println!("Error since the externval is not func, so they cannot be compared.");
         return false;
     }
 }
@@ -312,7 +311,7 @@ impl ModuleInstance {
 		let mut tempt_exports = self.exports.borrow_mut();
 		let mut index = 1;
 		for func in funcs.to_vec() {
-			println!("*******before naming, every func is {:?}", func);
+			// println!("*******before naming, every func is {:?}", func);
 			let mut flag = false;
 			for (key, val) in tempt_exports.iter() {
 			    if *val == ExternVal::Func(func.clone()) {
@@ -336,7 +335,7 @@ impl ModuleInstance {
 				tempt_exports.insert(tempt_name.clone(), ExternVal::Func(func.clone())); 
 				index = index + 1;
 			}
-			println!("*******after naming, every func is {:?}", func);
+			// println!("*******after naming, every func is {:?}", func);
 		}
 	}
 

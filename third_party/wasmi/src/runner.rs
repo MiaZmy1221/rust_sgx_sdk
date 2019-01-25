@@ -27,6 +27,7 @@ use isa;
 /// 3) Add clone trait for enum RunResult and impl fmt::Debug for RunResult for future use.
 /// 4) Change the function start_execution() to initialize static variables in case of errors.
 /// 5) Change do_run_function() and run_call_indirect() to produce a message. A message will be produced only when a module/actor calls another module/actor's funtion.
+///    run_call_indirect() is added with some code to deal with situation when two or more messages are produced.
 /// 6) Add trait clone for struct ValueStack.
 /// 7) Implement get_args() in ValueStack in order to get parameters of the called function.
 /// 8) string_to_static_str() is used to transfer a string to static str.
@@ -40,10 +41,13 @@ pub const DEFAULT_CALL_STACK_LIMIT: usize = 64 * 1024;
 
 /// static variables
 ///
-/// message_check is for checking whether the message is produced or not. If not, set it to -1, otherwise, set it to the index of the called function in the module table. 
-/// args_static are the arguments needed by the called function;
+/// message_check is for checking whether a message is produced or not. 
+/// If not, set it to false, otherwise, set it true.
+/// func_ids means produced messages' ids in the module's table.
+/// args_static are the arguments needed by all the called functions.
 /// args_num is the number of the arguments of the called function.
-pub static mut message_check: i32 = -1;
+pub static mut message_check: bool = false;
+pub static mut func_ids: &str = "";
 pub static mut args_static: &str = "";
 pub static mut args_num: i32 = -1;
 
@@ -152,9 +156,11 @@ impl Interpreter {
 		assert!(self.state == InterpreterState::Initialized);
 		// Reset all static variables before execution. 
 		unsafe {
-			message_check = -1;
+			message_check = false;
+			func_ids = "";
 			args_static = "";
 			args_num = -1;
+
 		}
 
 		self.state = InterpreterState::Started;
@@ -162,7 +168,6 @@ impl Interpreter {
 		let opt_return_value = self.return_type.map(|_vt| {self.value_stack.pop()});
 
 		// Ensure that stack is empty after the execution. This is guaranteed by the validation properties.
-		self.value_stack.print_vstack();
 		assert!(self.value_stack.len() == 0);
 
 		Ok(opt_return_value)
@@ -589,16 +594,27 @@ impl Interpreter {
 		if result == true {
 			Ok(InstructionOutcome::ExecuteCall(func_ref))
 		}
-		else {
-			// Ge the info of the called function.
-			// Step1: get the number of arguments of this function and assign it to the static variable.
-			// Step2: get the arguments of this function and assign it to the static variable.
-			// Step3: get the function body(table id) of this function.
+		// Ge the info of the called functions.
+		else if(unsafe{ !message_check }){
 			unsafe{
+				message_check = true;
 				args_num = func_ref.signature().params_num() as i32;
+				func_ids = string_to_static_str(table_func_idx.to_string());
 				let tempt_result = self.value_stack.get_args();
 				args_static = string_to_static_str(tempt_result);
-				message_check = table_func_idx as i32;
+			}
+			Ok(InstructionOutcome::ReturnForCallIndirect)
+		}
+		else {
+			unsafe{
+				args_num = func_ref.signature().params_num() as i32;
+				let mut ids: String = String::new();
+				ids = func_ids.to_owned() + "|" + &table_func_idx.to_string();
+				func_ids = string_to_static_str(ids);
+				let tempt_result = self.value_stack.get_args();
+				let mut args_tempt: String = String::new();
+				args_tempt = args_static.to_owned() + "|" + &tempt_result;
+				args_static = string_to_static_str(args_tempt);	
 			}
 			Ok(InstructionOutcome::ReturnForCallIndirect)
 		}
