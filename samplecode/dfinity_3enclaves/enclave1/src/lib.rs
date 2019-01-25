@@ -72,58 +72,14 @@ use std::ffi::CString;
 use std::boxed::Box;
 use sgx_trts::memeq::ConsttimeMemEq;
 
-/// Changes to the previous file.(wasmi)
-///
-/// 1) Add some third parties or declarations for use.
-/// 2) Delete contents about lazy_static: definition of lazy_static SPECDRIVER, functions sgxwasm_init() and wasm_invoke().
-/// 3) Define MessageInC in order to pass messages from enclave to app.
-/// 4) Change function creat_tx()'s return value by adding two fields: codeid and dataid.
-/// 5) Add a function assign_msg_array() to deal with the messages, which is to transfer MessageArray(defined in file third_party/wasmi/src/message.rs) to MessageInC.
-/// 6) Change the function ecall_merkle_tree_entry() to transfer messages and related info from enclave to app.
-/// 7) Functions about wasmi are moved to the new file "wasmi_encl1.rs". Add "mod wasmi_encl1". 
-///    When calling functions in wasmi_encl1.rs, wasmi_encl1:: should be added in front of a function.
+mod hex;
 
-/// Wasmi
 #[macro_use]
 extern crate lazy_static;
 extern crate wasmi;
 extern crate sgxwasm;
-use std::sync::SgxMutex;
-use sgxwasm::{SpecDriver, boundary_value_to_runtime_value, result_covert};
-use wasmi::{ModuleInstance, ImportsBuilder, RuntimeValue, Error as InterpreterError, Module, NopExternals};
-use wasmi::{message_check, args_static};
-use wasmi::{Message, TrapKind};
-use std::fmt;
-use wasmi::{TableInstance, TableRef, FuncInstance, FuncRef, Signature, ModuleImportResolver, ValueType, Trap, RuntimeArgs, Externals};
-use std::collections::HashMap;
-use wasmi::{MemoryInstance, MemoryRef};
-use wasmi::memory_units::Pages;
-use std::borrow::BorrowMut;
-mod wasmi_encl1;
-
-/// Delete lazy_static and SPECDRIVER since two fields Cell<usize> are added and they cannot be 
-/// shared between threads safely.
-
-/*
-/// Used to get the module instance, lazy_static has a mutex to lock variables when necessary.
-lazy_static!{
-    static ref SPECDRIVER: SgxMutex<SpecDriver> = SgxMutex::new(SpecDriver::new());
-}
-#[no_mangle]
-pub extern "C"
-fn sgxwasm_init() -> sgx_status_t {
-    let mut sd = SPECDRIVER.lock().unwrap();
-    *sd = SpecDriver::new();
-    sgx_status_t::SGX_SUCCESS
-}
-fn wasm_invoke(module : Option<String>, field : String, args : Vec<RuntimeValue>)
-              -> Result<Option<RuntimeValue>, InterpreterError> {
-    let mut program = SPECDRIVER.lock().unwrap();
-    let module = program.module_or_last(module.as_ref().map(|x| x.as_ref()))
-                        .expect(&format!("Expected program to have loaded module {:?}", module));
-    module.invoke_export(&field, &args, program.spec_module())
-}
-*/
+use wasmi::Message;
+mod wasmi_plugin;
 
 fn verify_peer_enclave_trust(peer_enclave_identity: &sgx_dh_session_enclave_identity_t )-> u32 {
 
@@ -205,8 +161,6 @@ pub fn gen_local_report_rust(ti: &sgx_target_info_t, report_data: &sgx_report_da
 
 //======================== ported from old exec enclave ==========================//
 
-mod hex;
-
 // MerkleTree
 const MAX_LEAF_NODE: i32 = 64;
 const MAX_LEN: i32 = 2048;
@@ -248,11 +202,10 @@ pub struct Transaction {
 } 
 
 /// Define struct MessageInC.
-/// Array others represent 4 fields in the Message struct: func_len, args_len, codeid and dataid, respectively.
 #[repr(C)]
 pub struct MessageInC {
-    pub func: [u8; 100], 
-    pub params: [i32; 100], 
+    pub func: [u8; 2048],
+    pub params: [i32; 100],
     pub others: [i32; 4], 
 }
 
@@ -500,53 +453,36 @@ pub extern "C" fn ecall_get_ti() -> sgx_target_info_t {
 }
 
 
-/// Deal with Message Array and pass it to msg_array in App.cpp.
-fn assign_msg_array(msg_array: &mut [MessageInC; 100], messageArray: Vec<Message>) {
-    let mut index: usize =0;
-    for msg_tempt in messageArray {
+/// Deal with Message Array from wasmi, and copy it to msg_array in App.cpp.
+fn assign_msg_array(msg_array: &mut [MessageInC; 100], wasmi_msg_arr: &Vec<Message>) -> String {
+    let mut index: usize = 0;
+    let mut msg_string = format!("{}", "Msg:");
+    for msg in wasmi_msg_arr {
         if index >= 100 {
             println!("messages are more than 100");
             break;
         }
 
-        let func_l = msg_tempt.func_len;
-        let args_l = msg_tempt.args_len;
-        let tempt_func = msg_tempt.function;
-        let tempt_params = msg_tempt.args;
-        let passed_func = tempt_func.as_bytes(); 
-        let codeid = msg_tempt.codeid;
-        let did = msg_tempt.dataid;
-
         // func name
-        let mut array1 = [0; 100];
-        for index_array in 0..passed_func.len() {
-            if index_array >= 100 {
-                println!("the message's function name's length should be larger than 1000");
-                break;
-            }
-            array1[index_array] = passed_func[index_array];
-        }
+        let mut temp_func = [0; 2048];
+        temp_func[..msg.function.len()].clone_from_slice(&msg.function.as_bytes());
 
         // func parameters
-        let mut array2 = [-1; 100];
-        for index_array in 0..tempt_params.len() {
-            if index_array >= 100 {
-                println!("the message's function parameters length should be larger than 100");
-                break;
-            }
-            array2[index_array] = tempt_params[index_array];
-        }
+        let mut temp_params = [0; 100];
+        temp_params[..msg.args.len()].clone_from_slice(&msg.args[..]);
 
-        let mut array3 = [5; 4];
-        array3[0] = func_l as i32;
-        array3[1] = args_l  as i32;
-        array3[2] = codeid  as i32;
-        array3[3] = did  as i32;
+        // others
+        let temp_others:[i32; 4] = [msg.func_len, msg.args_len, msg.codeid, msg.dataid];
         
-        let tempt_msg = MessageInC{func: array1, params: array2, others: array3};
-        msg_array[index] = tempt_msg;
+        let temp_msg = MessageInC{func: temp_func, params: temp_params, others: temp_others};
+        msg_array[index] = temp_msg.clone();
         index = index + 1;
+
+        // construct msg_string
+        msg_string = format!("{} idx:{}, func:{}, params:{:?}, others:{:?};", 
+                            msg_string, index, &msg.function, &msg.args[..], &temp_others);
     }
+    msg_string
  
 }
 
@@ -584,7 +520,7 @@ pub extern "C" fn ecall_merkle_tree_entry(codeproof: *mut MerkleProof, dataproof
     let mut code_decrypted = deconstruct_payload(&code_val.as_str(), &node_key);
     let mut data_decrypted = deconstruct_payload(&data_val.as_str(), &node_key);
 
-    // Step 5: pass code/data to wasmi and run
+    // Step 5.1: pass code/data to wasmi and run
     let wasmfunc_bytes = unsafe{slice::from_raw_parts(wasmfunc_ptr, wasmfunc_len as usize)};
     let wasmfunc_str = String::from_utf8(wasmfunc_bytes.to_vec()).unwrap();
 
@@ -593,20 +529,23 @@ pub extern "C" fn ecall_merkle_tree_entry(codeproof: *mut MerkleProof, dataproof
     println!("\n\nInside ecall_merkle_tree_entry(): oldhash {}, wasmfunc: {:?}, wasmargs: {:?}", 
             oldhash, wasmfunc_str, wasmargs_vec);
 
-    // Step5.1: run the module and pass the result MessageArray to app
-    let messageArray = wasmi_encl1::run_func(&mut code_decrypted, &mut data_decrypted, &wasmfunc_str, wasmargs_vec.clone(), codeid, dataid);
+    // Step 5.2: run the module and pass the result MessageArray to app
+    let messageArray = wasmi_plugin::run_func(&mut code_decrypted, &mut data_decrypted, &wasmfunc_str, wasmargs_vec.clone(), codeid, dataid);
     println!("\n\nInside ecall_merkle_tree_entry(): new memory is {:?}", data_decrypted);
-    let tempt_count = messageArray.len() as i32;
-    unsafe{ptr::copy_nonoverlapping(&tempt_count as *const c_int, msg_count as *mut c_int, 1)};
-    assign_msg_array(msg_array, messageArray);
+    let temp_len = messageArray.len() as i32;
+    unsafe{ptr::copy_nonoverlapping(&temp_len as *const c_int, msg_count as *mut c_int, 1)};
+    let msg_string = assign_msg_array(msg_array, &messageArray);
 
     // Step 6: generate new ROOT inside the enclave
     let new_data = construct_payload(&data_decrypted, &node_key);
     let mut newhash = MTGenNewRootHash(dataproof, &new_data.as_bytes().to_vec());
     println!("Inside ecall_merkle_tree_entry(): new ROOT hash: {:?}", newhash);
 
-    // Step 7: create attestation data([..32]: SHA256(oldhash;tx;newhash))
-    let attn_data = create_attn_data(oldhash, &tx_str, newhash);
+    // Step 7.1: append messageArray to tx_str
+    let tx_str_with_msg = format!("{};MsgArray:{}", tx_str, msg_string);
+
+    // Step 7.2: create attestation data([..32]: SHA256(oldhash;tx;newhash))
+    let attn_data = create_attn_data(oldhash, &tx_str_with_msg, newhash);
 
     // Step 8: generate attn report
     let new_report = gen_local_report_rust(&ti, &attn_data);
@@ -618,7 +557,7 @@ pub extern "C" fn ecall_merkle_tree_entry(codeproof: *mut MerkleProof, dataproof
     unsafe{ptr::copy_nonoverlapping(new_data.as_ptr(), data_out, new_data.len())};
 
     // Step 9.2: prepare Transaction
-    create_transaction(&oldhash, &tx_str, &newhash, &new_report, tx_out);
+    create_transaction(&oldhash, &tx_str_with_msg, &newhash, &new_report, tx_out);
 
     sgx_status_t::SGX_SUCCESS
 

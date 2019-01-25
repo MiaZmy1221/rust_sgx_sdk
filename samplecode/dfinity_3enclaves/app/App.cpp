@@ -27,26 +27,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // App.cpp : Defines the entry point for the console application.
-#include <stdio.h>
-#include <map>
-#include "Enclave1_u.h"
-#include "Enclave2_u.h"
-#include "Enclave3_u.h"
-#include "sgx_eid.h"
-#include "sgx_urts.h"
 
-#include <stdlib.h>
-#include <stdarg.h>
-#include <string.h>
-#include <assert.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
-#include "sgx_uae_service.h"
-
-#include "sgx_quote.h"
-#include "merkle.h"
-#include <openssl/sha.h>
+#include "App.h"
 
 #define UNUSED(val) (void)(val)
 #define TCHAR   char
@@ -455,16 +437,12 @@ bool check_transaction(Transaction tx)
 // Messages. App need to deal with these messages.
 
 /////////////////////////////////////////////////////////////////////////////////////////
-
 Message allMsgArray[MAX_MSG];
 int msg_num = 0;
 
-void print_message_params(int idx, MsgArray array[MAX_MSG])
+void print_message_params(int idx, Message array[MAX_MSG])
 {
-    printf("message %d function is: ", idx);
-    for (int i=0; i<100; i++)
-        printf("%c", array[idx].func[i]);
-    printf("\n");
+    printf("message %d function is: %s\n", idx, array[idx].func);
 
     printf("message %d params are: ", idx);
     for (int i=0; i<100; i++)
@@ -477,18 +455,36 @@ void print_message_params(int idx, MsgArray array[MAX_MSG])
 }
 
 // Get all the needed parameters for next execution.
-void deal_with_message(int idx, int* codeid, int* dataid, char* funcname, int* func_len, int* args, int* args_len) {    
-    *func_len = allMsgArray[idx].others[0];
-    *args_len = allMsgArray[idx].others[1];
-    for (int n = 0; n < *args_len; n++) {
-        args[n] = allMsgArray[idx].params[n];
-    }
-    strncpy(funcname, allMsgArray[idx].func, *func_len);
-    *codeid = allMsgArray[idx].others[2];
-    *dataid = allMsgArray[idx].others[3];
+void get_args_from_message(int idx, int* codeid, int* dataid, char* wasmfunc, int* func_len, int* wasmargs, int* args_len) 
+{    
+    Message* msg = &allMsgArray[idx];
+    *func_len = msg->others[0];
+    *args_len = msg->others[1];
+    *codeid = msg->others[2];
+    *dataid = msg->others[3];
+    memcpy(wasmargs, msg->params, sizeof(int)*(msg->others[1]));
+    strncpy(wasmfunc, msg->func, msg->others[0]);
 }
 
-void addMessage(int count, Message* array) {
+void empty_message_array(MerkleTree *tree, sgx_target_info_t vali_ti)
+{
+    int current = 0;
+    while (current < msg_num)
+    {
+        int codeid, dataid, func_len, args_len;
+        int wasmargs[100];
+        char wasmfunc[MAX_LEN];
+
+        get_args_from_message(current, &codeid, &dataid, wasmfunc, &func_len, wasmargs, &args_len);
+        printf("idx: %d, %d, %d, %s, %d, args_len: %d\n", current, codeid, dataid, wasmfunc, func_len, args_len);
+        execute(tree, codeid, dataid, wasmfunc, func_len, wasmargs, args_len, vali_ti);
+
+        ++current;
+    }
+}
+
+void append_message(int count, Message* array) 
+{
     for(int i=0; i<count; i++){
         memcpy(&allMsgArray[msg_num], &array[i], sizeof(Message));
         msg_num++;
@@ -501,7 +497,8 @@ void addMessage(int count, Message* array) {
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
-void execute(MerkleTree *tree, int codeidx, int dataidx, char* wasmfunc, int* wasmargs, sgx_target_info_t vali_ti)
+void execute(MerkleTree *tree, int codeid, int dataid, char* wasmfunc, int func_len, 
+            int* wasmargs, int args_len, sgx_target_info_t vali_ti)
 {
     uint32_t ret_status;
     sgx_status_t status;
@@ -510,9 +507,9 @@ void execute(MerkleTree *tree, int codeidx, int dataidx, char* wasmfunc, int* wa
 
     // get MerkleProofs
     MerkleProof* codeproof = (MerkleProof*)malloc(sizeof(MerkleProof));
-    MTGetMerkleProof(tree, codeidx, codeproof);
+    MTGetMerkleProof(tree, codeid, codeproof);
     MerkleProof* dataproof = (MerkleProof*)malloc(sizeof(MerkleProof));
-    MTGetMerkleProof(tree, dataidx, dataproof);
+    MTGetMerkleProof(tree, dataid, dataproof);
 
     // return values
     char data_out[MAX_LEN] = "";
@@ -521,8 +518,8 @@ void execute(MerkleTree *tree, int codeidx, int dataidx, char* wasmfunc, int* wa
     Message tempArray[MAX_MSG];
 
     Enclave1_ecall_merkle_tree_entry(e1_enclave_id, &status, codeproof, dataproof, oldhash, 
-                wasmfunc, 7*sizeof(char), wasmargs, 1*sizeof(int), data_out, &tx_out, &vali_ti,
-                tempArray, &count, sizeof(Message)*100);
+                wasmfunc, func_len*sizeof(char), wasmargs, args_len*sizeof(int), data_out, &tx_out, &vali_ti,
+                tempArray, &count, sizeof(Message)*MAX_MSG);
     
     if (status != SGX_SUCCESS) {
         print_error_message(status);
@@ -533,9 +530,9 @@ void execute(MerkleTree *tree, int codeidx, int dataidx, char* wasmfunc, int* wa
     printf("\n\n[App]data_out after ecall: %s\n", data_out);
 
     // write node 
-    MTWriteNode(tree, dataidx, data_out);
+    MTWriteNode(tree, dataid, data_out);
     printf("[App]new data node: ");
-    MTPrintNodeByIndex(tree, dataidx);
+    MTPrintNodeByIndex(tree, dataid);
     
     // print new ROOT
     printf("[App]new ROOT: ");
@@ -547,13 +544,7 @@ void execute(MerkleTree *tree, int codeidx, int dataidx, char* wasmfunc, int* wa
     // printf("[App]write tree finished\n");
 
     // add msg to global allMsgArray
-    addMessage(count, tempArray);
-
-    // print the messages
-    for(int i = 0; i < count; i++){
-        printf("**********************print messages %d after ecall************************** \n", i);
-        print_message_params(i, allMsgArray);
-    }
+    append_message(count, tempArray);
 
     // record transaction
     record_transaction(tx_out);
@@ -569,12 +560,6 @@ void execute(MerkleTree *tree, int codeidx, int dataidx, char* wasmfunc, int* wa
         // // get ti of the execution enclave
         // sgx_target_info_t exec_ti;
         // Enclave1_ecall_get_ti(e1_enclave_id, &exec_ti);
-
-        // //TESTING
-        // // tx_out.oldhash = tx_out.newhash;
-        // // record_transaction(tx_out);
-        // // record_transaction(tx_out);
-        // // record_transaction(tx_out);
 
         // // read and verify report in validation enclave; get remote attn Transaction
         // Transaction remote_attn_tx;
@@ -630,8 +615,11 @@ int _tmain(int argc, _TCHAR* argv[])
     char wasmfunc[64] = "callref";
     int wasmargs[1] = {1};
 
-    execute(tree, 4 + MAX_LEAF_NODE, 5 + MAX_LEAF_NODE, wasmfunc, wasmargs, vali_ti);
+    execute(tree, 4 + MAX_LEAF_NODE, 5 + MAX_LEAF_NODE, wasmfunc, 7, wasmargs, 1, vali_ti);
 
+    // deal with Messages
+    empty_message_array(tree, vali_ti);
+    
     free(tree);
 
     sgx_destroy_enclave(e1_enclave_id);

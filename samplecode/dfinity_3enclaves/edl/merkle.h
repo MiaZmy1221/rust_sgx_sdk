@@ -9,8 +9,7 @@
 #define ROOT 1	// the root idx is 1!
 
 #define MAX_MSG 100
-#define MAX_PARAMS 100 // maximum length of a function's params
-#define MAX_FUNC_LEN 100 // maximum length of a function name
+#define MAX_PARAMS 100 // maximum number of a function's params
 
 /// Changes compared to the previous file:
 ///
@@ -53,12 +52,11 @@ typedef struct Transaction {
 
 /// MessageInC struct is used to store the message in the execution enclave.
 /// This struct equals to struct Message in file third_part/wasmi/src/message.rs actually.
-/// Array others represent 4 fields in the Message struct: they are func_len, args_len, codeid and dataid, respectively.
 typedef struct Message {
-	char func[MAX_FUNC_LEN]; //func name
+	char func[MAX_LEN];
 	int params[MAX_PARAMS];
-	int others[4];
-} MsgArray;
+	int others[4]; // msg.func_len, msg.args_len, msg.codeid, msg.dataid
+} Message;
 
 #endif /* MERKLE_H */
 
